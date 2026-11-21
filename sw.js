@@ -1,10 +1,10 @@
 // App-shell cache. Media (mp4/mp3) is deliberately NOT intercepted: iOS needs HTTP Range
 // responses for <video>/<audio>, which Cache API replays badly. The browser's HTTP cache handles media.
-const VER = 'ws-v2';
+const VER = 'ws-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/engine.js', 'js/audio.js', 'js/scenes.js',
-  'js/player.js', 'js/request.js', 'js/config.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
+  'js/player.js', 'js/journey.js', 'js/request.js', 'js/config.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'themes/index.json', 'themes/dark-academia-train/manifest.json',
-  'themes/dark-academia-train/scenes/train-window.jpg', 'themes/dark-academia-train/scenes/train-compartment.jpg', 'themes/dark-academia-train/scenes/village-arrival.jpg'];
+  'themes/dark-academia-train/stills/s0.jpg', 'themes/dark-academia-train/stills/c2.jpg'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(VER).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => {

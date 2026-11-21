@@ -38,7 +38,7 @@ function renderLibrary() {
       <button class="card-theme" data-theme="${esc(t.id)}">
         <div class="cover" style="background-image:url('themes/${esc(t.id)}/${esc(t.cover)}')"></div>
         <div class="meta"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p>
-        <span class="pill">${(t.scenes || []).length} scenes${t.music?.some(m => m.placeholder) ? ' · placeholder music' : ''}</span></div>
+        <span class="pill">${t.schema === 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + l.views.length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span></div>
       </button>`).join('') || '<p class="muted">No themes yet.</p>'}
     </div>
     <p class="muted center small">More themes appear here as they are made — use the Request tab.</p>`;
