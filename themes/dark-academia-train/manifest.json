@@ -1,0 +1,23 @@
+{
+  "id": "dark-academia-train",
+  "title": "Dark Academia Train to a Snowy Village",
+  "description": "A candlelit compartment, snow-laden pines sliding past the window, and a lamplit village waiting at the end of the line.",
+  "cover": "scenes/train-window.jpg",
+  "accent": "#d9b26f",
+  "sceneMode": "journey",
+  "scenes": [
+    { "id": "window", "title": "Snowy scenery", "clip": "scenes/train-window.mp4", "still": "scenes/train-window.jpg" },
+    { "id": "compartment", "title": "The compartment", "clip": "scenes/train-compartment.mp4", "still": "scenes/train-compartment.jpg" },
+    { "id": "village", "title": "Arriving at the village", "clip": "scenes/village-arrival.mp4", "still": "scenes/village-arrival.jpg" }
+  ],
+  "music": [
+    { "title": "Placeholder pad I (procedural, not Suno)", "src": "audio/placeholder-pad-1.mp3", "placeholder": true },
+    { "title": "Placeholder pad II (procedural, not Suno)", "src": "audio/placeholder-pad-2.mp3", "placeholder": true },
+    { "title": "Placeholder pad III (procedural, not Suno)", "src": "audio/placeholder-pad-3.mp3", "placeholder": true }
+  ],
+  "ambience": { "title": "Train & rain (procedural placeholder)", "src": "audio/ambience-train-rain.mp3" },
+  "intro": { "lines": ["Welcome, Writers...", "Find your seat. Open your story.", "The journey begins."] },
+  "breakText": ["Rest your eyes. Stretch. Sip something warm.", "Let the ideas settle.", "Breathe. The story will wait."],
+  "breakEndText": "The next sprint begins soon...",
+  "outro": { "lines": ["Beautiful work, my friend!", "Until the next journey."] }
+}
