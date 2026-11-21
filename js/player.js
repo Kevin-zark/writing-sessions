@@ -1,6 +1,6 @@
 import { buildTimeline, locate, planScenes, sceneAt, fmtClock } from './engine.js';
 import { SessionAudio } from './audio.js';
-import { SceneStage, JourneyStage } from './scenes.js';
+import { SceneStage, JourneyStage, WindowStage } from './scenes.js';
 import { planJourney, itemAt, legAt } from './journey.js';
 
 class Clock {
@@ -26,7 +26,7 @@ export class Player {
     this.root = root; this.m = manifest; this.base = base; this.s = settings; this.speed = speed;
     this.audio = audio || new SessionAudio(); this.onExit = onExit;
     this.tl = buildTimeline(settings);
-    this.v2 = manifest.schema === 2 && Array.isArray(manifest.legs);
+    this.v2 = manifest.schema >= 2 && Array.isArray(manifest.legs);
     this.plan = this.v2 ? planJourney(this.tl, manifest) : planScenes(this.tl, (manifest.scenes || []).length, manifest.sceneMode || 'journey');
     this.clock = new Clock(speed);
     this.curSeg = -1; this.paused = false; this.finished = false; this.started = false;
@@ -62,7 +62,9 @@ export class Player {
       hud: q('.hud'), label: q('.hud-label'), scene: q('.hud-scene'), clock: q('.hud-clock'), bar: q('.bar i'), controls: q('.controls'),
       play: q('.play'), prep: q('.prep'), confirm: q('.confirm'), badge: q('.speedbadge') };
     if (this.speed !== 1) this.el.badge.textContent = '×' + this.speed;
-    this.stage = this.v2
+    this.stage = this.v2 && this.m.render?.type === 'window'
+      ? new WindowStage(this.el.stage, this.plan, this.base, { speed: this.speed, render: this.m.render, legs: this.plan.chain?.legs, getPos: () => this.clock.pos() })
+      : this.v2
       ? new JourneyStage(this.el.stage, this.plan, this.base, { speed: this.speed, objectPosition: this.m.frame?.objectPosition })
       : new SceneStage(this.el.stage, this.m.scenes || [], this.base);
     r.style.setProperty('--accent', this.m.accent || '#d9b26f');
@@ -191,7 +193,7 @@ export class Player {
   /** Per-clip ambience: crossfade layers over the bridge length (or 4 s). */
   _applyItem(i, instant) {
     this._item = i; const it = this.plan.items[i]; if (!it) return;
-    const sec = instant ? 0.05 : Math.max(0.3, Math.min(8, (it.kind === 'bridge' ? (it.end - it.start) : 4) / this.speed));
+    const sec = instant ? 0.05 : Math.max(0.3, Math.min(8, (it.kind === 'bridge' ? (it.end - it.start) : it.kind === 'cruise' ? 6 : 4) / this.speed));
     this.audio.setLayers(it.ambience, sec);
     this.el.scene.textContent = it.label || '';
   }

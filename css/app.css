@@ -104,7 +104,7 @@ input:focus,textarea:focus { outline:1px solid var(--accent); }
 .confirm p { margin:0 0 6px; font-size:1.2rem; font-style:italic; }
 .nosleep { position:absolute; width:1px; height:1px; opacity:.01; pointer-events:none; }
 .hud-scene { font-size:clamp(.62rem, 1.7vmin, .9rem); letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.55); min-height:1.1em; padding-left:.25em; margin-bottom:.2em; font-style:italic; }
-#player .layer video, #player .layer img { object-position: var(--obj-pos, 50% 50%); }
+#player .layer video, #player .layer img, #player .layer canvas { object-position: var(--obj-pos, 50% 50%); }
 
 /* seek feedback + 5-button control row */
 .ctl-row { gap:10px; }
@@ -113,3 +113,5 @@ input:focus,textarea:focus { outline:1px solid var(--accent); }
 .seekfx span { font:600 1.1rem system-ui,sans-serif; letter-spacing:.04em; background:rgba(0,0,0,.45); padding:.5em .9em; border-radius:99px; }
 .seekfx.go { animation:seekfx .6s ease-out; }
 @keyframes seekfx { 0% { opacity:0; background:rgba(255,255,255,.0) } 20% { opacity:1; background:rgba(255,255,255,.12) } 100% { opacity:0; background:rgba(255,255,255,0) } }
+/* schema-3 window stage: the live canvas fills the stage like a video would */
+.layer canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }

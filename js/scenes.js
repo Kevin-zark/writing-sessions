@@ -1,3 +1,4 @@
+import { WindowRenderer } from './window.js';
 // Scene stage: two layers that crossfade. Each layer = still image (with slow Ken Burns pan)
 // + muted looping <video>. If a clip is missing / blocked (e.g. iOS Low Power Mode) the
 // still keeps its Ken Burns animation instead.
@@ -204,4 +205,94 @@ export class JourneyStage {
   pause() { this.layers.forEach(l => { try { l.video.pause(); } catch (e) {} l.img.style.animationPlayState = 'paused'; }); }
   resume() { const l = this.layers[this.top]; if (l.mode === 'video') l.video.play().catch(() => {}); this.layers.forEach(x => x.img.style.animationPlayState = 'running'); }
   destroy() { this.token++; this.layers.forEach(l => { try { l.video.pause(); l.video.removeAttribute('src'); l.video.load(); } catch (e) {} l.el.remove(); }); }
+}
+
+// ---------------------------------------------------------------------------------------------
+// WindowStage (manifest schema 3, render.type 'window'): cruise items are drawn live by WindowRenderer on a <canvas>
+// (always moving, seamless by construction, no video decoding), station items are short video loops. Switching
+// between the two is a plain cross-fade, so seeks / skips / backgrounding never have to chain clips.
+export class WindowStage {
+  constructor(root, plan, base, { speed = 1, render = {}, legs = [], getPos } = {}) {
+    this.root = root; this.plan = plan; this.base = base; this.speed = speed; this.cur = -1; this.token = 0; this.getPos = getPos; this.log = [];
+    this.top = 'none'; this.render = render;
+    const cl = document.createElement('div'); cl.className = 'layer wlayer'; const cv = document.createElement('canvas'); cl.appendChild(cv); root.appendChild(cl);
+    const sl = document.createElement('div'); sl.className = 'layer';
+    sl.innerHTML = '<img class="still" alt="" decoding="async"><video muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>';
+    root.appendChild(sl);
+    const v = sl.querySelector('video'); v.muted = true; v.defaultMuted = true; v.setAttribute('muted', '');
+    if (render.objectPosition) { cv.style.objectPosition = v.style.objectPosition = sl.querySelector('img').style.objectPosition = render.objectPosition; }
+    this.cv = { el: cl, canvas: cv }; this.st = { el: sl, img: sl.querySelector('img'), video: v, item: -1, ready: false, mode: 'none' };
+    this.win = new WindowRenderer(cv, render, plan, base, legs);
+    window.__ws_window = this.win;
+  }
+  get info() { const it = this.plan.items[this.cur]; return { index: this.cur, id: it?.id, kind: it?.kind, mode: this.top === 'canvas' ? 'canvas' : this.st.mode, log: this.log, err: this.win.err ? String(this.win.err) : null }; }
+  url(p) { return p ? this.base + p : ''; }
+
+  update(want, pos) {
+    if (want < 0) return;
+    if (this.cur < 0) return this._show(want, { instant: true });
+    if (want !== this.cur) return this._show(want, {});
+    this._maybePreload(pos);
+  }
+  jump(want) { if (want >= 0 && want !== this.cur) return this._show(want, {}); }
+
+  _maybePreload(pos) {
+    if (this.top !== 'canvas' || this.speed !== 1) return;
+    const n = this.cur + 1, it = this.plan.items[n]; if (!it || it.kind === 'cruise' || this.st.item === n) return;
+    if (it.start - pos > 20) return;
+    this._prepStation(n);
+  }
+  _prepStation(n) {
+    const it = this.plan.items[n], S = this.st, v = S.video, tok = S.tok = (S.tok || 0) + 1; S.item = n; S.ready = false; S.mode = 'still';
+    S.img.src = this.url(it.still || ''); S.img.classList.remove('kb');
+    if (!it.clip || this.failed?.has(it.clip)) return (S.prep = Promise.resolve(false));
+    return S.prep = new Promise((resolve) => {
+      let done = false;
+      const fin = (ok, hard) => {
+        if (done) return; done = true; clearTimeout(to);
+        if (S.tok !== tok) return resolve(false);
+        v.oncanplay = v.onloadeddata = v.onerror = null; S.ready = ok;
+        if (ok) { try { v.pause(); v.currentTime = 0; } catch (e) {} } else if (hard) (this.failed ||= new Set()).add(it.clip);
+        resolve(ok);
+      };
+      const to = setTimeout(() => fin(false, false), 20000);
+      v.onerror = () => fin(false, true); v.oncanplay = () => fin(true); v.onloadeddata = () => { if (v.readyState >= 3) fin(true); };
+      v.classList.remove('on'); v.src = this.url(it.clip); v.load();
+      try { const pp = v.play(); if (pp && pp.catch) pp.catch(() => {}); } catch (e) {}   // iOS: a paused hidden video never loads without a nudge
+    });
+  }
+  async _show(n, { instant = false } = {}) {
+    const it = this.plan.items[n]; if (!it) return;
+    const my = ++this.token, C = this.cv, S = this.st, was = this.top;
+    const prevCruise = this.plan.items[this.cur]?.kind === 'cruise';
+    this.cur = n;
+    const fade = instant ? 0 : (this.speed === 1 ? 2500 : 300);
+    const reveal = (L, other, done) => {
+      L.el.style.zIndex = '2'; other.el.style.zIndex = '1'; void L.el.offsetWidth;
+      L.el.style.transition = fade ? `opacity ${fade}ms ease-in-out` : 'none'; L.el.style.opacity = '1';
+      setTimeout(() => { if (my !== this.token) return; other.el.style.opacity = '0'; done && done(); }, fade + 80);
+    };
+    if (it.kind === 'cruise') {
+      this.win.setItem(n);
+      if (was === 'canvas' && prevCruise) { this.log.push({ id: it.id, kind: it.kind, mode: 'canvas', t: Date.now() }); return; }   // renderer cross-fades scenes itself
+      for (let i = 0; i < 60 && !this.win.ready; i++) await new Promise(r => setTimeout(r, 100));
+      if (my !== this.token) return;
+      this.win.start(this.getPos);
+      this.top = 'canvas';
+      try { this.win.draw(this.getPos()); } catch (e) { this.win.err = e; }
+      reveal(C, S, () => { try { S.video.pause(); S.video.removeAttribute('src'); S.video.load(); } catch (e) {} S.item = -1; S.ready = false; S.video.classList.remove('on'); });
+    } else {
+      if (S.item !== n) this._prepStation(n); else if (!S.ready && S.prep) await S.prep;
+      if (S.item === n && !S.ready && S.prep) await S.prep;
+      if (my !== this.token) return;
+      if (S.ready) { S.mode = 'video'; S.video.classList.add('on'); S.img.classList.remove('kb'); S.video.currentTime = 0; const p = S.video.play(); if (p?.catch) p.catch(() => {}); }
+      else { S.mode = 'kenburns'; S.video.removeAttribute('src'); try { S.video.load(); } catch (e) {} void S.img.offsetWidth; S.img.classList.add('kb'); }
+      this.top = 'video';
+      reveal(S, C, () => { if (this.top === 'video') this.win.stop(); });
+    }
+    this.log.push({ id: it.id, kind: it.kind, mode: this.top === 'canvas' ? 'canvas' : S.mode, t: Date.now() });
+  }
+  pause() { try { this.st.video.pause(); } catch (e) {} this.st.img.style.animationPlayState = 'paused'; }
+  resume() { if (this.top === 'video' && this.st.mode === 'video') this.st.video.play().catch(() => {}); if (this.top === 'canvas' && !this.win.run) this.win.start(this.getPos); this.st.img.style.animationPlayState = 'running'; }
+  destroy() { this.token++; this.win.stop(); try { this.st.video.pause(); this.st.video.removeAttribute('src'); this.st.video.load(); } catch (e) {} this.cv.el.remove(); this.st.el.remove(); }
 }

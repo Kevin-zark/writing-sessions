@@ -31,26 +31,31 @@ Audio only starts from the *Begin session* tap (iOS requirement).
 
 Each theme is a folder listed in `themes/index.json`, described by its `manifest.json`.
 
-**Schema 2: journeys.** This is what Dark Academia Train uses. The full spec and the step-by-step build process are in [`docs/THEME_RECIPE.md`](docs/THEME_RECIPE.md).
+**Schema 3: journeys with a live window (what Dark Academia Train uses).** The full spec and the step-by-step build process are in [`docs/THEME_RECIPE.md`](docs/THEME_RECIPE.md).
 
-- `stations[5]` are the intro, the 3 break platforms and the arrival.
-- `legs[4]` each have 6 `views`, a base `ambience` and a `music` pool of 1–2 songs × 2 versions.
-- Every view has a 10 s seamless loop (`clips/loop-*.mp4`, same first/last frame) and an 8 s bridge clip to the next view (`clips/br-*.mp4`).
-- `ambienceLib` lists the looped layers in `audio/amb/`, which are CC0 Freesound recordings. Each clip mixes its own layers.
+- Every leg is a **cruise**: the window is drawn live on a `<canvas>` by `js/window.js` (parallax backdrop / mid / near layers, fog, rain or snow, sway, behind a window-frame overlay). It is always moving, loops forever without a seam and is a pure function of the session clock, so seeks, backgrounding and rotation can never desync it.
+- Each cruise segment has **one landmark** that slides past once, then the next segment (new backdrop and landmark); a new zone starts each leg.
+- `stations[5]` are the intro, the 3 break platforms and the arrival: short seamless video loops (`clips/loop-*.mp4`). The canvas speed ramps down to a stop and back up.
+- `legs[4]` each have 4 `segments` (backdrop, mid, landmark, weather, per-segment ambience), a base `ambience` and a `music` pool of 1–2 songs × 2 versions.
+- Cruise assets are ~43 small images in `zones/<zone>/` (≈4 MB; the old chained-clip version was ≈104 MB).
+- `ambienceLib` lists the looped layers in `audio/amb/`, which are CC0 Freesound recordings. Each segment mixes its own layers (the train bed is mid-boosted so it is audible on a phone speaker).
 - `credits` records the source and licence of every audio file.
 - `status`, `owner` and `origin` are forward-compatible fields; no UI uses them yet.
-- `js/journey.js` plans the chain for any session length:
+- `js/journey.js` plans the journey for any session length:
   - stations go to the breaks nearest each leg boundary;
   - the arrival lands at the end;
-  - each view dwells for at least 25 s.
-- `js/scenes.js` `JourneyStage` plays loop → bridge → loop with no cuts. It switches to crossfades only for skips or sped-up test runs, and falls back to a Ken Burns still if a clip fails.
-- `preview.html?theme=<id>` previews any clip with its ambience mix, plays the chain from any point, and holds per-clip notes and the ambience QA table.
+  - each segment dwells for at least 45 s, and its landmark window is fixed by the planner.
+- `js/scenes.js` `WindowStage` shows the canvas for cruise items and a video loop for stops (plain cross-fades, so skips and seeks need no clip chaining; Ken Burns still if a loop fails). `JourneyStage` still plays older schema-2 chained-clip themes.
+- `preview.html?theme=<id>` previews any stop loop or live cruise segment (speed toggle, jump to its landmark) with its ambience mix, and holds per-item notes and the ambience QA table.
+- `THEME=<id> node tools/e2e.mjs` runs the end-to-end suite for any theme (`BROWSER=webkit` for WebKit); `tools/window_qa.mjs` saves a PNG of every cruise segment mid-landmark.
 - Build tools:
   - `tools/seam_fix.py` (seam smoothing + encode);
   - `tools/match_clips.py` (verifies each clip's endpoints);
   - `tools/fs_search.py` (Freesound CC0 search);
   - `tools/make_ambience.py` (loop, loudness-match and QA the layers);
-  - `tools/build_train_manifest.py`.
+  - `tools/process_window_assets.py` (turns generated images into backdrop / layer / landmark assets);
+  - `tools/build_train_manifest.py`;
+  - `tools/serve_range.py` (static server with HTTP Range, needed for video in WebKit).
 
 **Schema 1** (a flat `scenes[]`, `music[]` and one ambience file) is still supported by the player.
 

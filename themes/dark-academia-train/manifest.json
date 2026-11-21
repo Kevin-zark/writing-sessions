@@ -1,9 +1,9 @@
 {
- "schema": 2,
+ "schema": 3,
  "id": "dark-academia-train",
  "title": "Dark Academia Train to Hollowmere",
  "description": "A candlelit compartment on a two-hour journey: a misty city, a rain-grey lake, a snow-hushed forest and the high mountain passes, arriving at Hollowmere University.",
- "cover": "stills/c2.jpg",
+ "cover": "stills/cover.jpg",
  "accent": "#d9b26f",
  "status": "published",
  "owner": "kevin",
@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 2,
+ "version": 3,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -21,15 +21,29 @@
   "intro": true,
   "outro": true
  },
- "frame": {
-  "objectPosition": "58% 45%"
+ "render": {
+  "type": "window",
+  "objectPosition": "50% 50%",
+  "size": [
+   1280,
+   720
+  ],
+  "frame": {
+   "src": "frame/overlay.png",
+   "pane": {
+    "x": 391,
+    "y": 23,
+    "w": 716,
+    "h": 519
+   }
+  }
  },
  "style": {
   "camera": "Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame",
   "interior": "Dark mahogany panels, bottle-green velvet curtains tied back at both edges, brass sconce upper left, leather book + teacup on the ledge",
   "palette": "Warm amber interior vs cool desaturated exterior",
   "lens": "35mm, light film grain, painterly cinematic realism",
-  "motion": "Exterior only; bridges slide scenery right-to-left",
+  "motion": "Exterior is procedural parallax behind the frame: always moving, landmarks slide past once",
   "reference": "stills/master reference kept in the theme workspace"
  },
  "ambienceLib": {
@@ -355,50 +369,70 @@
      "artist": "fullslopstudios (Suno)"
     }
    ],
-   "depart": {
-    "clip": "clips/br-s0-c1.mp4",
-    "dur": 8.042
+   "speed": 1.0,
+   "near": "zones/city/near.jpg",
+   "fog": {
+    "color": "#aab4c4",
+    "far": 0.34,
+    "near": 0.26
    },
-   "arrive": {
-    "clip": "clips/br-c6-s1.mp4",
-    "dur": 8.042
-   },
-   "views": [
+   "segments": [
     {
      "id": "c1",
-     "title": "Rooftops in the fog",
-     "loop": "clips/loop-c1.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c1.jpg",
-     "ambience": [],
-     "bridge": {
-      "clip": "clips/br-c1-c2.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "c2",
-     "title": "The cathedral",
-     "loop": "clips/loop-c2.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c2.jpg",
+     "title": "Rooftops in the fog · the cathedral",
+     "backdrop": "zones/city/b1.jpg",
+     "mid": "zones/city/m1.jpg",
+     "weather": {
+      "rain": 0.12
+     },
      "ambience": [
       {
        "layer": "bells",
        "gain": 0.6
       }
      ],
-     "bridge": {
-      "clip": "clips/br-c2-c3.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/city/lm1.jpg",
+      "w": 722,
+      "h": 612,
+      "dur": 26,
+      "at": 0.5,
+      "height": 0.85,
+      "base": 0.95
+     }
+    },
+    {
+     "id": "c2",
+     "title": "The old clock tower",
+     "backdrop": "zones/city/b2.jpg",
+     "mid": "zones/city/m2.jpg",
+     "weather": {
+      "rain": 0.18
+     },
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.4
+      }
+     ],
+     "landmark": {
+      "src": "zones/city/lm2.jpg",
+      "w": 368,
+      "h": 691,
+      "dur": 26,
+      "at": 0.6,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "c3",
      "title": "The iron bridge",
-     "loop": "clips/loop-c3.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c3.jpg",
+     "backdrop": "zones/city/b2.jpg",
+     "mid": "zones/city/m3.jpg",
+     "weather": {
+      "rain": 0.22
+     },
      "ambience": [
       {
        "layer": "city",
@@ -409,52 +443,39 @@
        "gain": 0.2
       }
      ],
-     "bridge": {
-      "clip": "clips/br-c3-c4.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/city/lm3.jpg",
+      "w": 1100,
+      "h": 302,
+      "dur": 26,
+      "at": 0.45,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "c4",
-     "title": "Terraced lanes",
-     "loop": "clips/loop-c4.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c4.jpg",
-     "ambience": [],
-     "bridge": {
-      "clip": "clips/br-c4-c5.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "c5",
-     "title": "The old clock mill",
-     "loop": "clips/loop-c5.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c5.jpg",
-     "ambience": [
-      {
-       "layer": "city",
-       "gain": 0.4
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-c5-c6.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "c6",
-     "title": "The outskirts",
-     "loop": "clips/loop-c6.mp4",
-     "loopDur": 10.0,
-     "still": "stills/c6.jpg",
+     "title": "The gasworks · the outskirts",
+     "backdrop": "zones/city/b3.jpg",
+     "mid": "zones/city/m3.jpg",
+     "weather": {
+      "rain": 0.15
+     },
      "ambience": [
       {
        "layer": "city",
        "gain": 0.3
       }
-     ]
+     ],
+     "landmark": {
+      "src": "zones/city/lm4.jpg",
+      "w": 972,
+      "h": 576,
+      "dur": 26,
+      "at": 0.6,
+      "height": 0.85,
+      "base": 0.95
+     }
     }
    ]
   },
@@ -485,111 +506,108 @@
      "artist": "fullslopstudios (Suno)"
     }
    ],
-   "depart": {
-    "clip": "clips/br-s1-l1.mp4",
-    "dur": 8.042
+   "speed": 1.0,
+   "near": "zones/lake/near.jpg",
+   "fog": {
+    "color": "#9fabb6",
+    "far": 0.4,
+    "near": 0.3
    },
-   "arrive": {
-    "clip": "clips/br-l6-s2.mp4",
-    "dur": 8.042
-   },
-   "views": [
+   "segments": [
     {
      "id": "l1",
-     "title": "Birches by the water",
-     "loop": "clips/loop-l1.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l1.jpg",
+     "title": "Birches by the water · the lighthouse",
+     "backdrop": "zones/lake/b1.jpg",
+     "mid": "zones/lake/m1.jpg",
+     "weather": {
+      "rain": 0.7
+     },
      "ambience": [],
-     "bridge": {
-      "clip": "clips/br-l1-l2.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/lake/lm1.jpg",
+      "w": 422,
+      "h": 486,
+      "dur": 26,
+      "at": 0.5,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "l2",
-     "title": "The open lake",
-     "loop": "clips/loop-l2.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l2.jpg",
+     "title": "The open lake · the ruined abbey",
+     "backdrop": "zones/lake/b2.jpg",
+     "mid": "zones/lake/m2.jpg",
+     "weather": {
+      "rain": 0.8
+     },
      "ambience": [
       {
        "layer": "lake_lap",
        "gain": 0.35
       }
      ],
-     "bridge": {
-      "clip": "clips/br-l2-l3.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/lake/lm2.jpg",
+      "w": 702,
+      "h": 459,
+      "dur": 26,
+      "at": 0.6,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "l3",
-     "title": "The old jetty",
-     "loop": "clips/loop-l3.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l3.jpg",
+     "title": "The old boathouse",
+     "backdrop": "zones/lake/b2.jpg",
+     "mid": "zones/lake/m3.jpg",
+     "weather": {
+      "rain": 0.85
+     },
      "ambience": [
       {
        "layer": "lake_lap",
        "gain": 0.7
       }
      ],
-     "bridge": {
-      "clip": "clips/br-l3-l4.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/lake/lm3.jpg",
+      "w": 584,
+      "h": 597,
+      "dur": 26,
+      "at": 0.45,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "l4",
-     "title": "The shore chapel",
-     "loop": "clips/loop-l4.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l4.jpg",
+     "title": "The stone arch · the far shore",
+     "backdrop": "zones/lake/b3.jpg",
+     "mid": "zones/lake/m3.jpg",
+     "weather": {
+      "rain": 0.6
+     },
      "ambience": [
       {
        "layer": "lake_lap",
        "gain": 0.4
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-l4-l5.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "l5",
-     "title": "The causeway",
-     "loop": "clips/loop-l5.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l5.jpg",
-     "ambience": [
-      {
-       "layer": "lake_lap",
-       "gain": 0.8
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-l5-l6.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "l6",
-     "title": "Sleet at the far shore",
-     "loop": "clips/loop-l6.mp4",
-     "loopDur": 10.0,
-     "still": "stills/l6.jpg",
-     "ambience": [
-      {
-       "layer": "rain_glass",
-       "gain": 0.45
       },
       {
        "layer": "forest_wind",
-       "gain": 0.45
+       "gain": 0.3
       }
-     ]
+     ],
+     "landmark": {
+      "src": "zones/lake/lm4.jpg",
+      "w": 997,
+      "h": 527,
+      "dur": 26,
+      "at": 0.6,
+      "height": 0.85,
+      "base": 0.95
+     }
     }
    ]
   },
@@ -620,97 +638,99 @@
      "artist": "fullslopstudios (Suno)"
     }
    ],
-   "depart": {
-    "clip": "clips/br-s2-f1.mp4",
-    "dur": 8.042
+   "speed": 0.8,
+   "near": "zones/forest/near.jpg",
+   "fog": {
+    "color": "#c9d4e6",
+    "far": 0.3,
+    "near": 0.22
    },
-   "arrive": {
-    "clip": "clips/br-f6-s3.mp4",
-    "dur": 8.042
-   },
-   "views": [
+   "segments": [
     {
      "id": "f1",
-     "title": "Snow-laden pines",
-     "loop": "clips/loop-f1.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f1.jpg",
+     "title": "Snow-laden pines · the ruined keep",
+     "backdrop": "zones/forest/b1.jpg",
+     "mid": "zones/forest/m1.jpg",
+     "weather": {
+      "snow": 0.6
+     },
      "ambience": [],
-     "bridge": {
-      "clip": "clips/br-f1-f2.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/forest/lm1.jpg",
+      "w": 925,
+      "h": 589,
+      "dur": 26,
+      "at": 0.5,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "f2",
-     "title": "Light through the firs",
-     "loop": "clips/loop-f2.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f2.jpg",
+     "title": "The frozen waterfall",
+     "backdrop": "zones/forest/b2.jpg",
+     "mid": "zones/forest/m2.jpg",
+     "weather": {
+      "snow": 0.7
+     },
      "ambience": [
       {
-       "layer": "forest_wind",
-       "gain": 0.35
+       "layer": "stream",
+       "gain": 0.6
       }
      ],
-     "bridge": {
-      "clip": "clips/br-f2-f3.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/forest/lm3.jpg",
+      "w": 673,
+      "h": 561,
+      "dur": 26,
+      "at": 0.55,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "f3",
-     "title": "The frozen stream",
-     "loop": "clips/loop-f3.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f3.jpg",
-     "ambience": [
-      {
-       "layer": "stream",
-       "gain": 0.7
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-f3-f4.mp4",
-      "dur": 8.042
+     "title": "The woodcutter's cabin",
+     "backdrop": "zones/forest/b2.jpg",
+     "mid": "zones/forest/m3.jpg",
+     "weather": {
+      "snow": 0.75
+     },
+     "ambience": [],
+     "landmark": {
+      "src": "zones/forest/lm2.jpg",
+      "w": 858,
+      "h": 543,
+      "dur": 26,
+      "at": 0.45,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "f4",
-     "title": "The deer clearing",
-     "loop": "clips/loop-f4.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f4.jpg",
-     "ambience": [],
-     "bridge": {
-      "clip": "clips/br-f4-f5.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "f5",
-     "title": "The woodcutter's cabin",
-     "loop": "clips/loop-f5.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f5.jpg",
-     "ambience": [],
-     "bridge": {
-      "clip": "clips/br-f5-f6.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "f6",
-     "title": "The mountains rise",
-     "loop": "clips/loop-f6.mp4",
-     "loopDur": 10.0,
-     "still": "stills/f6.jpg",
+     "title": "The chapel · the mountains rise",
+     "backdrop": "zones/forest/b3.jpg",
+     "mid": "zones/forest/m3.jpg",
+     "weather": {
+      "snow": 0.55
+     },
      "ambience": [
       {
        "layer": "wind_high",
        "gain": 0.35
       }
-     ]
+     ],
+     "landmark": {
+      "src": "zones/forest/lm4.jpg",
+      "w": 639,
+      "h": 609,
+      "dur": 26,
+      "at": 0.6,
+      "height": 0.85,
+      "base": 0.95
+     }
     }
    ]
   },
@@ -751,80 +771,80 @@
      "artist": "fullslopstudios (Suno)"
     }
    ],
-   "depart": {
-    "clip": "clips/br-s3-m1.mp4",
-    "dur": 8.042
+   "speed": 0.9,
+   "near": "zones/mountains/near.jpg",
+   "fog": {
+    "color": "#bac6d8",
+    "far": 0.34,
+    "near": 0.28
    },
-   "arrive": {
-    "clip": "clips/br-m6-s4.mp4",
-    "dur": 8.042
-   },
-   "views": [
+   "segments": [
     {
      "id": "m1",
-     "title": "The climb",
-     "loop": "clips/loop-m1.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m1.jpg",
+     "title": "The climb · the viaduct",
+     "backdrop": "zones/mountains/b1.jpg",
+     "mid": "zones/mountains/m1.jpg",
+     "weather": {
+      "snow": 0.4
+     },
      "ambience": [
       {
        "layer": "wind_high",
-       "gain": 0.8
+       "gain": 0.9
       }
      ],
-     "bridge": {
-      "clip": "clips/br-m1-m2.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/mountains/lm1.jpg",
+      "w": 975,
+      "h": 452,
+      "dur": 26,
+      "at": 0.5,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
      "id": "m2",
-     "title": "The viaduct",
-     "loop": "clips/loop-m2.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m2.jpg",
+     "title": "The tunnel",
+     "backdrop": "zones/mountains/b2.jpg",
+     "mid": "zones/mountains/m2.jpg",
+     "weather": {
+      "snow": 0.8
+     },
      "ambience": [
       {
        "layer": "wind_high",
-       "gain": 0.9
+       "gain": 0.5
       }
      ],
-     "bridge": {
-      "clip": "clips/br-m2-m3.mp4",
-      "dur": 8.042
+     "landmark": {
+      "type": "tunnel",
+      "dur": 24,
+      "at": 0.5,
+      "ambience": [
+       {
+        "layer": "tunnel",
+        "gain": 0.9
+       },
+       {
+        "layer": "wind_high",
+        "gain": 0
+       },
+       {
+        "layer": "train",
+        "gain": 0.6
+       }
+      ]
      }
     },
     {
      "id": "m3",
-     "title": "The tunnel",
-     "loop": "clips/loop-m3.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m3.jpg",
-     "ambience": [
-      {
-       "layer": "tunnel",
-       "gain": 0.9
-      },
-      {
-       "layer": "wind_high",
-       "gain": 0
-      },
-      {
-       "layer": "train",
-       "gain": 0.6
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-m3-m4.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "m4",
-     "title": "Blizzard on the pass",
-     "loop": "clips/loop-m4.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m4.jpg",
+     "title": "Blizzard on the pass · the monastery",
+     "backdrop": "zones/mountains/b2.jpg",
+     "mid": "zones/mountains/m3.jpg",
+     "weather": {
+      "snow": 0.95
+     },
      "ambience": [
       {
        "layer": "blizzard",
@@ -839,34 +859,24 @@
        "gain": 0.3
       }
      ],
-     "bridge": {
-      "clip": "clips/br-m4-m5.mp4",
-      "dur": 8.042
+     "landmark": {
+      "src": "zones/mountains/lm3.jpg",
+      "w": 598,
+      "h": 539,
+      "dur": 26,
+      "at": 0.5,
+      "height": 0.85,
+      "base": 0.95
      }
     },
     {
-     "id": "m5",
-     "title": "The frozen falls",
-     "loop": "clips/loop-m5.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m5.jpg",
-     "ambience": [
-      {
-       "layer": "wind_high",
-       "gain": 0.35
-      }
-     ],
-     "bridge": {
-      "clip": "clips/br-m5-m6.mp4",
-      "dur": 8.042
-     }
-    },
-    {
-     "id": "m6",
-     "title": "Hollowmere in the valley",
-     "loop": "clips/loop-m6.mp4",
-     "loopDur": 10.0,
-     "still": "stills/m6.jpg",
+     "id": "m4",
+     "title": "Hollowmere in the valley · the observatory",
+     "backdrop": "zones/mountains/b3.jpg",
+     "mid": "zones/mountains/m3.jpg",
+     "weather": {
+      "snow": 0.3
+     },
      "ambience": [
       {
        "layer": "wind_high",
@@ -876,7 +886,16 @@
        "layer": "bells",
        "gain": 0.2
       }
-     ]
+     ],
+     "landmark": {
+      "src": "zones/mountains/lm4.jpg",
+      "w": 633,
+      "h": 574,
+      "dur": 26,
+      "at": 0.55,
+      "height": 0.85,
+      "base": 0.95
+     }
     }
    ]
   }

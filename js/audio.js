@@ -154,7 +154,7 @@ export class SessionAudio {
       if (!seg) return { m: 0, a: 0 };
       switch (seg.type) {
         case 'intro': return { m: 1.0, a: 0.8 };
-        case 'sprint': return { m: 1.0, a: 1.0 };   // ambience bus full; the beds themselves sit ~8-10 LU under the music
+        case 'sprint': return { m: 1.0, a: 0.65 };   // train bed sat ~-4 dB under the music live (a bit hot): ~-8 dB now, still clearly audible on phone speakers
         case 'break': return { m: 0.0, a: 1.0 };   // music out, ambience swells
         case 'outro': return { m: 0.8, a: 0.7 };
         default: return { m: 0, a: 0 };

@@ -16,6 +16,14 @@ export function chainOf(m) {
   const out = { stations: st.map((s, i) => node(s, { kind: 'station', station: i })), legs: [] };
   legs.forEach((leg, li) => {
     const base = leg.ambience || [];
+    if (leg.segments) {      // schema 3: procedural "window" cruise. Each segment is a continuously-moving view with one landmark pass-by
+      out.legs.push({ id: leg.id, title: leg.title, music: leg.music || [], base, depart: null, arrive: null, speed: leg.speed ?? 1, rampIn: leg.rampIn, rampOut: leg.rampOut, cruise: true,
+        views: leg.segments.map((v, vi) => ({
+          id: v.id, title: v.title, kind: 'cruise', leg: li, view: vi, clip: null, still: v.backdrop, dur: 0, next: null, ambience: mergeLayers(base, v.ambience),
+          scene: { backdrop: v.backdrop, mid: v.mid, near: v.near || leg.near, fog: { ...(leg.fog || {}), ...(v.fog || {}) }, weather: { ...(leg.weather || {}), ...(v.weather || {}) }, landmark: v.landmark || null },
+        })) });
+      return;
+    }
     out.legs.push({
       id: leg.id, title: leg.title, music: leg.music || [], base,
       depart: leg.depart ? { clip: leg.depart.clip, dur: leg.depart.dur || 8 } : null,
@@ -71,12 +79,38 @@ export function planJourney(tl, m, { minDwell = 25 } = {}) {
   stLoop(0, t0, firstSprint.start, ch.stations[0]?.title);
   stops.push({ station: 0, start: t0, end: firstSprint.start, kind: intro ? 'intro' : 'origin' });
   const legSpans = [];
+  /** Schema 3: a leg is a run of cruise items (one per segment). The landmark pass-by window is fixed here (single source of truth for the renderer);
+   *  a landmark that brings its own ambience (tunnel) splits its segment into before / during / after so the sound only plays while it passes. */
+  const cruiseItems = (leg, li, dep, arr) => {
+    const V = leg.views, minD = Math.max(minDwell, 45), span = arr - dep;
+    let n = V.length; while (n > 1 && n * minD > span) n--;
+    const pick = n >= V.length ? V.map((_, i) => i) : Array.from({ length: n }, (_, i) => n === 1 ? 0 : Math.round(i * (V.length - 1) / (n - 1)));
+    const dw = span / pick.length;
+    pick.forEach((vi, i) => {
+      const v = V[vi], s0 = dep + i * dw, e0 = i === pick.length - 1 ? arr : dep + (i + 1) * dw, lm = v.scene.landmark, len = e0 - s0, dur = lm?.dur || 26;
+      const base = { kind: 'cruise', scene: v.scene, leg: li, view: vi, label: v.title, id: v.id, still: v.still, clip: null };
+      let win = null; if (lm && len >= dur + 14) { const a = s0 + 8 + Math.max(0, len - dur - 16) * (lm.at ?? 0.55); win = [a, a + dur]; }
+      if (win && lm.ambience?.length) {
+        const a = Math.max(s0 + 1, win[0] - 2), b = Math.min(e0 - 1, win[1] + 1);
+        push({ ...base, start: s0, end: a, ambience: v.ambience, lmWin: win }); push({ ...base, start: a, end: b, ambience: mergeLayers(v.ambience, lm.ambience), lmWin: win, id: v.id + '-lm' }); push({ ...base, start: b, end: e0, ambience: v.ambience, lmWin: win, id: v.id + '-post' });
+      } else push({ ...base, start: s0, end: e0, ambience: v.ambience, lmWin: win });
+    });
+  };
   for (let li = 0; li < L; li++) {
     const leg = ch.legs[li];
     // leg start (departure) and end (arrival)
     const dep = li === 0 ? firstSprint.start : (stopFor[li] ? stopFor[li].end : timeAt(S * li / L));
     const arr = li === L - 1 ? (outro ? outro.start : sprints[sprints.length - 1].end) : (stopFor[li + 1] ? stopFor[li + 1].start : timeAt(S * (li + 1) / L));
     legSpans.push({ leg: li, start: dep, end: arr, id: leg.id });
+    if (leg.cruise) {
+      legSpans.push({ ...legSpans.pop(), startsAtStop: li === 0 || !!stopFor[li], endsAtStop: li === L - 1 || !!stopFor[li + 1], speed: leg.speed });
+      cruiseItems(leg, li, dep, arr);
+      if (li < L - 1) {
+        if (stopFor[li + 1]) { stLoop(li + 1, stopFor[li + 1].start, stopFor[li + 1].end); stops.push({ station: li + 1, start: stopFor[li + 1].start, end: stopFor[li + 1].end, kind: 'break' }); }
+        else stops.push({ station: li + 1, start: arr, end: arr, kind: 'pass' });
+      }
+      continue;
+    }
     const passThroughIn = li > 0 && !stopFor[li];
     // available travel seconds in this leg, excluding unmatched breaks (train holds during them)
     const holds = breaks.filter(b => !Array.from(used).some(i => bt[i].b === b) && b.start >= dep && b.end <= arr);
@@ -125,7 +159,7 @@ export function planJourney(tl, m, { minDwell = 25 } = {}) {
   stops.push({ station: ch.stations.length - 1, start: lastEnd, end: tEnd, kind: outro ? 'outro' : 'destination' });
   items.sort((a, b) => a.start - b.start);
   items.forEach((it, i) => { it.i = i; it.music = it.leg >= 0 ? ch.legs[it.leg].music : []; });
-  return { items, stops, legSpans, chain: ch };
+  return { items, stops, legSpans, chain: ch, total: tEnd };
 }
 
 export function itemAt(plan, t) {

@@ -38,7 +38,7 @@ function renderLibrary() {
       <button class="card-theme" data-theme="${esc(t.id)}">
         <div class="cover" style="background-image:url('themes/${esc(t.id)}/${esc(t.cover)}')"></div>
         <div class="meta"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p>
-        <span class="pill">${t.schema === 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + l.views.length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span></div>
+        <span class="pill">${t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span></div>
       </button>`).join('') || '<p class="muted">No themes yet.</p>'}
     </div>
     <p class="muted center small">More themes appear here as they are made — use the Request tab.</p>`;
@@ -104,7 +104,7 @@ function renderSettings() {
       <label class="field col"><span>Email for requests <small>(used when no webhook)</small></span><input id="f-mailtoTo" type="email" placeholder="you@example.com" value="${esc(settings.mailtoTo || CONFIG.REQUEST_MAILTO_TO)}"></label>
     </section>
     <p class="muted small center"><a href="preview.html" style="color:var(--accent,#d9b26f)">Theme preview &amp; QA</a></p>
-    <p class="muted small center">v2 journeys${SPEED !== 1 ? ` · debug speed ×${SPEED}` : ''}</p>`;
+    <p class="muted small center">journeys${SPEED !== 1 ? ` · debug speed ×${SPEED}` : ''}</p>`;
   const v = $('#view-settings');
   v.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { applyPreset(b.dataset.preset); renderSettings(); });
   const refresh = () => { const s2 = summary(); $('#set-sum').textContent = `${s2.text} · about ${s2.total} total`; };
