@@ -9,7 +9,7 @@ const ok = (name, cond, extra='') => { results[name] = !!cond; console.log((cond
 
 async function newCtx(opts = {}, video = true) {
   const ctx = await browser.newContext({ ...phone, ...opts });
-  if (video) await ctx.route('**/scenes/*.mp4', r => { const n = r.request().url().split('/').pop().replace('.mp4', '.webm'); r.fulfill({ body: fs.readFileSync('/tmp/webm/' + n), contentType: 'video/webm' }); });
+  if (video) await ctx.route('**/clips/*.mp4', r => { const n = r.request().url().split('/').pop().replace('.mp4', '.webm'); r.fulfill({ body: fs.readFileSync('/tmp/webm/' + n), contentType: 'video/webm' }); });
   return ctx;
 }
 
@@ -24,7 +24,7 @@ async function newCtx(opts = {}, video = true) {
   await page.click('#begin');
   await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   ok('A: session started, audio ctx running', await page.evaluate(() => window.__app.audio.ctx.state) === 'running');
-  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.loaded.music === 6 && window.__ws.loaded.amb));
+  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.v2 && window.__ws.loaded.music === 2 && window.__ws.loaded.amb && window.__ws.loaded.layers === 14), JSON.stringify(await page.evaluate(() => window.__ws.loaded)));
   await page.waitForTimeout(3500);
   await page.screenshot({ path: SHOTS + '03-intro-card-iphone.png' });
   await page.click('#player', { position: { x: 200, y: 400 } }).catch(()=>{});
@@ -55,11 +55,17 @@ async function newCtx(opts = {}, video = true) {
   ok('A: resume continues timer', c3 !== c2, c3);
   ok('A: wake lock mode set', ['wakeLock','video-fallback','none'].includes(await page.evaluate(() => window.__ws.wakeMode)), await page.evaluate(() => window.__ws.wakeMode));
   ok('A: mediaSession shows current track title', await page.evaluate(() => {
-    const titles = (window.__app.themes[0].music || []).map(m => m.title);
+    const titles = (window.__app.themes[0].legs || []).flatMap(l => l.music).map(m => m.title);
     const meta = navigator.mediaSession.metadata;
     return titles.includes(meta?.title) && (meta?.artist || '').includes('fullslopstudios');
   }));
-  ok('A: music queue cycles multiple tracks', await page.evaluate(() => new Set((window.__app.audio.musicQueue || []).map(q => q.title)).size >= 1 && window.__app.audio.tracks.length === 6));
+  ok('A: music queue cycles multiple tracks', await page.evaluate(() => new Set((window.__app.audio.musicQueue || []).map(q => q.title)).size >= 1 && window.__app.audio.tracks.length === 2));
+  // speed-1 seamless chaining: jump to 6 s before the first in-leg bridge, then watch loop → bridge → loop
+  const br = await page.evaluate(() => { const its = window.__ws.plan.items; const k = its.findIndex((x, i) => i > 1 && x.kind === 'bridge' && its[i - 1].kind === 'loop'); window.__ws.clock.seek(its[k].start - 6); return { k, id: its[k].id, next: its[k + 1].id }; });
+  await page.waitForFunction((n) => window.__ws.stage.log.some(x => x.id === n), br.next, { timeout: 40000 }).catch(() => {});
+  const chainLog = await page.evaluate(() => window.__ws.stage.log.slice(-4).map(x => x.id + ':' + x.mode));
+  ok('A: loop → bridge → loop chained without a cut', chainLog.includes(br.id + ':chain') && chainLog.includes(br.next + ':chain'), chainLog.join(' '));
+  ok('A: HUD shows the current view name', (await page.textContent('.hud-scene')).length > 2, await page.textContent('.hud-scene'));
   ok('A: no JS errors', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
@@ -73,6 +79,8 @@ async function newCtx(opts = {}, video = true) {
   await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   // audio probe: analyser on master, sample loudness 20x/s along with the segment type
   await page.evaluate(() => {
+    window.__layerLog = []; const A = window.__app.audio, orig = A.setLayers.bind(A);
+    A.setLayers = (l, s) => { window.__layerLog.push({ seg: document.querySelector('#player').dataset.seg, keys: (l || []).map(x => x.layer).sort().join('+') }); return orig(l, s); };
     const a = window.__app.audio, c = a.ctx, an = c.createAnalyser(); an.fftSize = 1024; a.master.connect(an);
     const mb = c.createAnalyser(); mb.fftSize = 1024; a.musicBus.connect(mb);
     const buf = new Float32Array(1024); window.__probe = [];
@@ -83,16 +91,22 @@ async function newCtx(opts = {}, video = true) {
   await page.waitForFunction(() => window.__ws.finished, null, { timeout: 120000 });
   const wall = (Date.now() - t0) / 1000;
   const info = await page.evaluate(() => ({
-    events: window.__ws.events, chimes: window.__app.audio.chimeLog, scenes: window.__ws.stage.log.map(x => x.scene + ':' + x.mode),
+    events: window.__ws.events, chimes: window.__app.audio.chimeLog, scenes: window.__ws.stage.log.map(x => x.id + ':' + x.mode), layers: window.__layerLog, legs: window.__ws.events.filter(e => e.type === 'leg').map(e => e.leg), items: window.__ws.plan.items.length,
     plan: window.__ws.plan, probe: window.__probe, total: window.__ws.tl.total, segs: window.__ws.tl.segs.map(s => s.type + (s.n || '')) }));
-  const types = info.events.filter(e => e.type !== 'end').map(e => e.type + (e.n || ''));
+  const types = info.events.filter(e => e.type !== 'end' && e.type !== 'leg').map(e => e.type + (e.n || ''));
   console.log('segments seen:', types.join(' '), ' wall', wall.toFixed(1) + 's');
   ok('B: all 9 segments in order, no break after last sprint', types.join(',') === 'intro,sprint1,break1,sprint2,break2,sprint3,break3,sprint4,outro', types.join(','));
   ok('B: session finished', info.events.at(-1).type === 'end');
   ok('B: wall-clock ≈ total/120', Math.abs(wall - info.total / 120) < 6, wall.toFixed(1) + ' vs ' + (info.total / 120).toFixed(1));
   ok('B: chime scheduled at every transition (9 + end)', info.chimes.length === 10, info.chimes.map(c => c.kind).join(','));
-  console.log('scenes:', info.scenes.join(' → '), JSON.stringify(info.plan.map(p => [Math.round(p.start / 60), Math.round(p.end / 60), p.scene])));
-  ok('B: crossfaded through all 3 scenes', ['window', 'compartment', 'village'].every((s, i) => info.scenes[i]?.startsWith(s)), info.scenes.join(','));
+  console.log('stage:', info.scenes.length, 'items shown of', info.items, '| legs:', info.legs.join(','));
+  const ids = info.scenes.map(s => s.split(':')[0]);
+  ok('B: journey shows boarding station, all 24 views, arrival', ids[0] === 's0' && ids.at(-1) === 's4' && ['c','l','f','m'].every(p => [1,2,3,4,5,6].every(n => ids.includes(p + n))), ids.join(','));
+  ok('B: passes through all 4 legs (music pool switched)', info.legs.join(',') === 'lake,forest,mountains', info.legs.join(','));
+  const brk = info.layers.filter(l => l.seg === 'break').map(l => l.keys);
+  ok('B: breaks use station ambience (walla/luggage)', brk.length > 0 && brk.every(k => k.includes('station_walla')), [...new Set(brk)].join(' | '));
+  const keys = new Set(info.layers.map(l => l.keys));
+  ok('B: per-clip ambience changes (≥8 distinct mixes, incl. tunnel + rain)', keys.size >= 8 && [...keys].some(k => k.includes('tunnel')) && [...keys].some(k => k.includes('rain_glass')), keys.size + ' mixes'); 
   // audible chime detection: master RMS spikes above music bed near boundaries
   const P = info.probe;
   const peak = Math.max(...P.map(p => p.master));
@@ -109,7 +123,7 @@ async function newCtx(opts = {}, video = true) {
 // ---------- Run C: custom settings persist; custom 2x1min w/o intro/outro; Ken Burns fallback ----------
 {
   const ctx = await newCtx({}, false); const page = await ctx.newPage();
-  await ctx.route('**/scenes/*.mp4', r => r.abort());      // simulate missing clips
+  await ctx.route('**/clips/*.mp4', r => r.abort());      // simulate missing clips
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(URL + '?speed=30'); await page.waitForSelector('.card-theme');
   await page.click('[data-tab=settings]');
@@ -125,7 +139,7 @@ async function newCtx(opts = {}, video = true) {
   await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   await page.waitForFunction(() => window.__ws.finished, null, { timeout: 60000 });
   const ev = await page.evaluate(() => ({ e: window.__ws.events.map(x => x.type + (x.n || '')), modes: window.__ws.stage.log.map(x => x.mode), total: window.__ws.tl.total }));
-  ok('C: custom 3×1 min /1 min break, no intro/outro => s1,b1,s2,b2,s3', ev.e.filter(x => x !== 'end').join(',') === 'sprint1,break1,sprint2,break2,sprint3' && ev.total === 300, ev.e.join(','));
+  ok('C: custom 3×1 min /1 min break, no intro/outro => s1,b1,s2,b2,s3', ev.e.filter(x => x !== 'end' && x !== 'leg').join(',') === 'sprint1,break1,sprint2,break2,sprint3' && ev.total === 300, ev.e.join(','));
   ok('C: Ken Burns fallback used when clips fail', ev.modes.length > 0 && ev.modes.every(m => m === 'kenburns'), ev.modes.join(','));
   await ctx.close();
 }

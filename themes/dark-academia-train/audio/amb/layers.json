@@ -1,0 +1,116 @@
+{
+ "train": {
+  "src": "133099-train-steam-interior.mp3",
+  "len": 60,
+  "mono": false,
+  "lufs": -24,
+  "pick": "steady",
+  "limit": true
+ },
+ "train_soft": {
+  "src": "133099-train-steam-interior.mp3",
+  "len": 60,
+  "mono": false,
+  "lufs": -27,
+  "lowpass": 1400,
+  "pick": 70,
+  "limit": true
+ },
+ "city": {
+  "src": "427841-city-quiet-night.mp3",
+  "len": 60,
+  "mono": true,
+  "lufs": -26,
+  "lowpass": 1600,
+  "pick": "steady"
+ },
+ "bells": {
+  "src": "413157-bells-french-distant.mp3",
+  "len": 50,
+  "mono": true,
+  "lufs": -27,
+  "lowpass": 2400,
+  "pick": "loud",
+  "limit": true
+ },
+ "rain_glass": {
+  "src": "235827-rain-roof-window.mp3",
+  "len": 60,
+  "mono": false,
+  "lufs": -25,
+  "pick": "steady"
+ },
+ "lake_lap": {
+  "src": "614299-lake-gentle-waves.mp3",
+  "len": 45,
+  "mono": true,
+  "lufs": -28,
+  "lowpass": 1100,
+  "pick": "steady",
+  "limit": true
+ },
+ "forest_wind": {
+  "src": "352436-forest-winter-light-wind.mp3",
+  "len": 45,
+  "mono": true,
+  "lufs": -27,
+  "lowpass": 3000,
+  "pick": "steady"
+ },
+ "stream": {
+  "src": "318064-river-lapping.mp3",
+  "len": 45,
+  "mono": true,
+  "lufs": -28,
+  "lowpass": 1400,
+  "pick": "steady"
+ },
+ "wind_high": {
+  "src": "117513-winter-wind.mp3",
+  "len": 60,
+  "mono": true,
+  "lufs": -26,
+  "lowpass": 2500,
+  "pick": "steady"
+ },
+ "blizzard": {
+  "src": "117513-winter-wind.mp3",
+  "len": 50,
+  "mono": true,
+  "lufs": -23,
+  "highpass": 120,
+  "pick": "loud"
+ },
+ "window_whistle": {
+  "src": "69512-wind-whistling-window.mp3",
+  "len": 50,
+  "mono": true,
+  "lufs": -27,
+  "highpass": 200,
+  "pick": "loud"
+ },
+ "tunnel": {
+  "src": "475500-train-tunnel.mp3",
+  "len": 30,
+  "mono": false,
+  "lufs": -23,
+  "lowpass": 3500,
+  "pick": "loud"
+ },
+ "station_walla": {
+  "src": "256626-euston-station.mp3",
+  "len": 55,
+  "mono": false,
+  "lufs": -25,
+  "lowpass": 900,
+  "pick": "steady"
+ },
+ "luggage": {
+  "src": "275173-luggage-rolling.mp3",
+  "len": 50,
+  "mono": true,
+  "lufs": -29,
+  "lowpass": 1200,
+  "pick": "loud"
+ }
+}

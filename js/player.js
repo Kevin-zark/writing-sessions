@@ -1,6 +1,7 @@
 import { buildTimeline, locate, planScenes, sceneAt, fmtClock } from './engine.js';
 import { SessionAudio } from './audio.js';
-import { SceneStage } from './scenes.js';
+import { SceneStage, JourneyStage } from './scenes.js';
+import { planJourney, itemAt, legAt } from './journey.js';
 
 class Clock {
   constructor(speed) { this.speed = speed; this.base = 0; this.t0 = null; }
@@ -23,7 +24,8 @@ export class Player {
     this.root = root; this.m = manifest; this.base = base; this.s = settings; this.speed = speed;
     this.audio = audio || new SessionAudio(); this.onExit = onExit;
     this.tl = buildTimeline(settings);
-    this.plan = planScenes(this.tl, (manifest.scenes || []).length, manifest.sceneMode || 'journey');
+    this.v2 = manifest.schema === 2 && Array.isArray(manifest.legs);
+    this.plan = this.v2 ? planJourney(this.tl, manifest) : planScenes(this.tl, (manifest.scenes || []).length, manifest.sceneMode || 'journey');
     this.clock = new Clock(speed);
     this.curSeg = -1; this.paused = false; this.finished = false; this.started = false;
     this.events = [];   // transition log for debugging/tests
@@ -36,7 +38,7 @@ export class Player {
       <div class="stage"></div><div class="vignette"></div>
       <div class="card"><p></p></div>
       <div class="breaktext"><p></p></div>
-      <div class="hud" aria-live="off"><div class="hud-label"></div><div class="hud-clock">00:00</div></div>
+      <div class="hud" aria-live="off"><div class="hud-scene"></div><div class="hud-label"></div><div class="hud-clock">00:00</div></div>
       <div class="bar"><i></i></div>
       <div class="controls">
         <button class="ctl close" aria-label="End session">${ICON.close}</button>
@@ -52,10 +54,12 @@ export class Player {
     r.hidden = false; r.classList.add('open'); r.classList.remove('done');
     const q = (s) => r.querySelector(s);
     this.el = { stage: q('.stage'), card: q('.card'), cardP: q('.card p'), bt: q('.breaktext'), btP: q('.breaktext p'),
-      hud: q('.hud'), label: q('.hud-label'), clock: q('.hud-clock'), bar: q('.bar i'), controls: q('.controls'),
+      hud: q('.hud'), label: q('.hud-label'), scene: q('.hud-scene'), clock: q('.hud-clock'), bar: q('.bar i'), controls: q('.controls'),
       play: q('.play'), prep: q('.prep'), confirm: q('.confirm'), badge: q('.speedbadge') };
     if (this.speed !== 1) this.el.badge.textContent = '×' + this.speed;
-    this.stage = new SceneStage(this.el.stage, this.m.scenes || [], this.base);
+    this.stage = this.v2
+      ? new JourneyStage(this.el.stage, this.plan, this.base, { speed: this.speed, objectPosition: this.m.frame?.objectPosition })
+      : new SceneStage(this.el.stage, this.m.scenes || [], this.base);
     r.style.setProperty('--accent', this.m.accent || '#d9b26f');
     // controls: tap to reveal, auto-hide
     this._onTap = (e) => { if (e.target.closest('.ctl,.confirm')) return; this._showControls(); };
@@ -82,11 +86,26 @@ export class Player {
     this.silent = new Audio(this.base.replace(/themes\/[^/]+\/$/, '') + 'assets/silence.mp3'); this.silent.loop = true;
     this.silent.play().catch(() => {});            // keeps the audio session + lock-screen controls alive
     this._acquireWake();
-    const firstScene = sceneAt(this.plan, 0);
-    const [loaded] = await Promise.all([a.loadTheme(this.m, this.base), this.stage.show(firstScene, { instant: true })]);
-    this.loaded = loaded;
-    a.setVolumes({ music: this.s.musicVol, amb: this.s.ambVol, chime: this.s.chimeVol });
-    a.startAmbience();
+    if (this.v2) {
+      const l0 = legAt(this.plan, 0), legs = this.m.legs;
+      const [amb, pool] = await Promise.all([
+        a.loadAmbienceLib(this.m.ambienceLib, this.base),
+        a.loadMusicPool(legs[l0].id, legs[l0].music, this.base),
+        this.stage.update(itemAt(this.plan, 0), 0),
+      ]);
+      this.loaded = { music: pool.length, amb: amb > 0, layers: amb, errors: a.loadErrors || [] };
+      a.setVolumes({ music: this.s.musicVol, amb: this.s.ambVol, chime: this.s.chimeVol });
+      a.tracks = pool; this.curLeg = l0;
+      a.startLayers();
+      this._applyItem(itemAt(this.plan, 0), true);
+      this._prefetchLeg(l0 + 1);
+    } else {
+      const firstScene = sceneAt(this.plan, 0);
+      const [loaded] = await Promise.all([a.loadTheme(this.m, this.base), this.stage.show(firstScene, { instant: true })]);
+      this.loaded = loaded;
+      a.setVolumes({ music: this.s.musicVol, amb: this.s.ambVol, chime: this.s.chimeVol });
+      a.startAmbience();
+    }
     this.started = true;
     this.el.prep.classList.add('gone');
     this.clock.start(0);
@@ -114,8 +133,16 @@ export class Player {
     this.el.bar.style.transform = `scaleX(${loc.progress.toFixed(4)})`;
     this._text(seg, loc);
     // scenes
-    const sc = sceneAt(this.plan, pos);
-    if (sc !== this.stage.cur) this.stage.show(sc);
+    if (this.v2) {
+      const want = itemAt(this.plan, pos);
+      this.stage.update(want, pos);
+      if (want !== this._item) this._applyItem(want);
+      const lg = legAt(this.plan, pos);
+      if (lg !== this.curLeg) this._enterLeg(lg);
+    } else {
+      const sc = sceneAt(this.plan, pos);
+      if (sc !== this.stage.cur) this.stage.show(sc);
+    }
     // audio health (1/s)
     const now = Date.now();
     if (!this._lastHealth || now - this._lastHealth > 1000) {
@@ -131,6 +158,25 @@ export class Player {
     const key = tr ? (tr.title + '|' + tr.start) : '';
     if (key !== this._trackKey) { this._trackKey = key; if (this.mediaOk) this._mediaMeta(); }
   }
+
+  /** Per-clip ambience: crossfade layers over the bridge length (or 4 s). */
+  _applyItem(i, instant) {
+    this._item = i; const it = this.plan.items[i]; if (!it) return;
+    const sec = instant ? 0.05 : Math.max(0.3, Math.min(8, (it.kind === 'bridge' ? (it.end - it.start) : 4) / this.speed));
+    this.audio.setLayers(it.ambience, sec);
+    this.el.scene.textContent = it.label || '';
+  }
+  async _enterLeg(lg) {
+    this.curLeg = lg; const leg = this.m.legs[lg]; if (!leg) return;
+    const pool = await this.audio.loadMusicPool(leg.id, leg.music, this.base);
+    if (this.curLeg !== lg) return;
+    const seg = this.tl.segs[this.curSeg];
+    this.audio.setMusicPool(pool, { hard: !seg || seg.type === 'break' || seg.type === 'intro' });
+    this.audio.prunePools([leg.id, this.m.legs[lg + 1]?.id].filter(Boolean));
+    this._prefetchLeg(lg + 1);
+    this.events.push({ type: 'leg', leg: leg.id, pos: Math.round(this.clock.pos()), at: Date.now() });
+  }
+  _prefetchLeg(lg) { const leg = this.m.legs?.[lg]; if (leg) setTimeout(() => this.audio.loadMusicPool(leg.id, leg.music, this.base), 15000 / this.speed); }
 
   _enterSegment(loc) {
     this.curSeg = loc.i; const seg = loc.seg;
