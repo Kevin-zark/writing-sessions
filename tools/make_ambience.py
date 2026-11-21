@@ -57,7 +57,7 @@ for name, cfg in layers.items():
     gain = cfg.get('lufs', -24) - float(j['input_i'])
     gain = min(gain, -3 - float(j['input_tp']))   # never push true peak above -3 dBTP
     chain = ','.join(af[:-1] + [f'volume={gain:.2f}dB'])
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', tmp, '-af', chain, '-c:a', 'libmp3lame', '-b:a', '128k' if y.shape[1] == 2 else '96k', dst], check=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', tmp, '-af', chain, '-c:a', 'libmp3lame', '-ac', '1', '-b:a', '96k', dst], check=True)  # mono: iOS decodes every layer to PCM; stereo ambience doubles memory
     # QA on the encoded file: loudness, true peak, seam jump
     q = subprocess.run(['ffmpeg', '-hide_banner', '-i', dst, '-af', 'ebur128=peak=true', '-f', 'null', '-'], capture_output=True, text=True).stderr
     I = float(q.rsplit('I:', 1)[1].split('LUFS')[0]); TP = float(q.rsplit('Peak:', 1)[1].split('dBFS')[0])

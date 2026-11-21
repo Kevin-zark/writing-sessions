@@ -25,6 +25,9 @@ export class SessionAudio {
       const vg = c.createGain(); vg.gain.value = 0.35; this.verb.connect(vg); vg.connect(this.master);
       this.chimeBus.connect(this.verb);
     }
+    // iOS 16.4+: 'playback' makes Web Audio ignore the ringer/silent switch and keeps it alive with the screen locked
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    this.ctx.onstatechange = () => { this.stateLog = (this.stateLog || []).concat(this.ctx.state).slice(-20); if (this.keepAlive && this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); };
     if (this.ctx.state !== 'running') this.ctx.resume();
     // iOS: play a tick of silence to open the audio session
     const b = this.ctx.createBuffer(1, 1, 22050), s = this.ctx.createBufferSource();
@@ -76,27 +79,37 @@ export class SessionAudio {
     this.musicEnd = this.musicQueue.length ? Math.max(...this.musicQueue.map(q => q.end - this.xf)) : 0;
     this.ensureMusic();
   }
-  /** Decode the theme's ambience library (each entry loops seamlessly). */
-  async loadAmbienceLib(lib, base) {
-    this.lib = {};
-    await Promise.all(Object.entries(lib || {}).map(async ([k, v]) => {
-      try { this.lib[k] = { ...v, buf: await this._load(base + v.src) }; } catch (e) { this.loadErrors = (this.loadErrors || []).concat(v.src); }
-    }));
+  /** Decode the theme's ambience library. Layers in `first` are awaited (needed right away); the rest decode
+   *  one at a time in the background, so iOS never decodes 14 files at once. Each entry loops seamlessly. */
+  async loadAmbienceLib(lib, base, first) {
+    this.lib = this.lib || {}; this.libDef = lib || {};
+    const keys = Object.keys(this.libDef), head = (first && first.length ? first : keys).filter(k => this.libDef[k]);
+    const one = async (k) => {
+      if (this.lib[k]) return;
+      try { this.lib[k] = { ...this.libDef[k], buf: await this._load(base + this.libDef[k].src) }; this._addLayerNode(k); }
+      catch (e) { this.loadErrors = (this.loadErrors || []).concat(this.libDef[k].src); }
+    };
+    await Promise.all(head.map(one));
+    const rest = keys.filter(k => !head.includes(k));
+    this.libRest = (async () => { for (const k of rest) await one(k); if (this.lastLayers) this.setLayers(this.lastLayers, 2); })();
     return Object.keys(this.lib).length;
   }
-  /** Start every library layer looping at gain 0 (phase-staggered so beds never line up). */
+  _addLayerNode(k) {
+    const c = this.ctx; if (!c || !this.layerNodes || this.layerNodes[k] || !this.lib[k]) return;
+    const v = this.lib[k], s = c.createBufferSource(), g = c.createGain(); s.buffer = v.buf; s.loop = true; g.gain.value = 0;
+    s.connect(g); g.connect(this.ambBus); s.start(0, (Object.keys(this.libDef).indexOf(k) * 7.3) % Math.max(1, v.buf.duration));
+    this.layerNodes[k] = { s, g, target: 0 };
+  }
+  /** Create looping nodes (gain 0) for every decoded layer; later layers are added as they finish decoding. */
   startLayers() {
     const c = this.ctx; if (!c || this.layerNodes) return;
     this.layerNodes = {};
-    Object.entries(this.lib || {}).forEach(([k, v], i) => {
-      const s = c.createBufferSource(), g = c.createGain(); s.buffer = v.buf; s.loop = true; g.gain.value = 0;
-      s.connect(g); g.connect(this.ambBus); s.start(0, (i * 7.3) % Math.max(1, v.buf.duration));
-      this.layerNodes[k] = { s, g, target: 0 };
-    });
+    Object.keys(this.lib || {}).forEach(k => this._addLayerNode(k));
   }
   /** Ramp every layer to its gain in `layers` ([{layer, gain}]) over `sec` seconds; others fade to 0. */
   setLayers(layers, sec = 4) {
     const c = this.ctx; if (!c || !this.layerNodes) return;
+    this.lastLayers = layers;
     const want = {}; (layers || []).forEach(l => { if (this.lib[l.layer]) want[l.layer] = (l.gain ?? 1) * (this.lib[l.layer].gain ?? 1); });
     const now = c.currentTime;
     for (const [k, n] of Object.entries(this.layerNodes)) {

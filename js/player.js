@@ -88,17 +88,20 @@ export class Player {
     this._acquireWake();
     if (this.v2) {
       const l0 = legAt(this.plan, 0), legs = this.m.legs;
+      // decode only the layers the first views need; the rest decode one by one in the background (iOS memory)
+      const first = []; for (const it of this.plan.items.slice(0, 8)) for (const l of (it.ambience || [])) if (!first.includes(l.layer)) first.push(l.layer);
       const [amb, pool] = await Promise.all([
-        a.loadAmbienceLib(this.m.ambienceLib, this.base),
+        a.loadAmbienceLib(this.m.ambienceLib, this.base, first),
         a.loadMusicPool(legs[l0].id, legs[l0].music, this.base),
         this.stage.update(itemAt(this.plan, 0), 0),
       ]);
       this.loaded = { music: pool.length, amb: amb > 0, layers: amb, errors: a.loadErrors || [] };
       a.setVolumes({ music: this.s.musicVol, amb: this.s.ambVol, chime: this.s.chimeVol });
       a.tracks = pool; this.curLeg = l0;
-      a.startLayers();
+      a.startLayers(); a.keepAlive = true;
+      this._nudge = () => { if (!this.paused && !this.finished) { this.audio.resume(); this.stage.resume(); } };
+      this.root.addEventListener('pointerdown', this._nudge);
       this._applyItem(itemAt(this.plan, 0), true);
-      this._prefetchLeg(l0 + 1);
     } else {
       const firstScene = sceneAt(this.plan, 0);
       const [loaded] = await Promise.all([a.loadTheme(this.m, this.base), this.stage.show(firstScene, { instant: true })]);
@@ -139,6 +142,7 @@ export class Player {
       if (want !== this._item) this._applyItem(want);
       const lg = legAt(this.plan, pos);
       if (lg !== this.curLeg) this._enterLeg(lg);
+      this._prefetchLeg(this.curLeg + 1, pos);
     } else {
       const sc = sceneAt(this.plan, pos);
       if (sc !== this.stage.cur) this.stage.show(sc);
@@ -173,10 +177,15 @@ export class Player {
     const seg = this.tl.segs[this.curSeg];
     this.audio.setMusicPool(pool, { hard: !seg || seg.type === 'break' || seg.type === 'intro' });
     this.audio.prunePools([leg.id, this.m.legs[lg + 1]?.id].filter(Boolean));
-    this._prefetchLeg(lg + 1);
     this.events.push({ type: 'leg', leg: leg.id, pos: Math.round(this.clock.pos()), at: Date.now() });
   }
-  _prefetchLeg(lg) { const leg = this.m.legs?.[lg]; if (leg) setTimeout(() => this.audio.loadMusicPool(leg.id, leg.music, this.base), 15000 / this.speed); }
+  /** Decode the next leg's songs only when its boundary is ~2 min away (keeps iOS memory down). */
+  _prefetchLeg(lg, pos) {
+    const leg = this.m.legs?.[lg]; if (!leg || this._pf === lg) return;
+    const first = this.plan.items.find(it => it.leg === lg);
+    if (pos != null && first && first.start - pos > 120) return;
+    this._pf = lg; this.audio.loadMusicPool(leg.id, leg.music, this.base);
+  }
 
   _enterSegment(loc) {
     this.curSeg = loc.i; const seg = loc.seg;
@@ -214,14 +223,14 @@ export class Player {
 
   pause() {
     if (this.paused || this.finished) return;
-    this.paused = true; this.clock.pause(); this.audio.suspend(); this.stage.pause();
+    this.paused = true; this.audio.keepAlive = false; this.clock.pause(); this.audio.suspend(); this.stage.pause();
     this.el.play.innerHTML = ICON.play; this.el.play.setAttribute('aria-label', 'Resume');
     this.root.classList.add('paused'); this._showControls();
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
   }
   resume() {
     if (!this.paused) return;
-    this.paused = false; this.audio.resume(); this.clock.resume(); this.stage.resume();
+    this.paused = false; this.audio.keepAlive = true; this.audio.resume(); this.clock.resume(); this.stage.resume();
     this.el.play.innerHTML = ICON.pause; this.el.play.setAttribute('aria-label', 'Pause');
     this.root.classList.remove('paused'); this._acquireWake();
     this.audio.schedule(this.tl, this.clock.pos(), this.speed);
@@ -239,7 +248,7 @@ export class Player {
 
   _finish() {
     if (this.finished) return;
-    this.finished = true; clearInterval(this.timer);
+    this.finished = true; this.audio.keepAlive = false; clearInterval(this.timer);
     this.events.push({ type: 'end', pos: Math.round(this.tl.total), at: Date.now() });
     this.root.classList.add('done'); this.root.classList.remove('hud-on');
     this.el.cardP.textContent = (this.m.outro?.lines || ['Beautiful work!'])[0];
@@ -307,7 +316,7 @@ export class Player {
 
   exit() {
     this.closed = true; clearInterval(this.timer); clearTimeout(this._ct);
-    document.removeEventListener('visibilitychange', this._vis);
+    document.removeEventListener('visibilitychange', this._vis); if (this._nudge) this.root.removeEventListener('pointerdown', this._nudge);
     this._releaseWake(); try { this.silent?.pause(); } catch (e) {}
     this.audio.close(); this.stage.destroy();
     if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }

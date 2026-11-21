@@ -173,7 +173,17 @@ async function init() {
     themes = (await Promise.all(idx.themes.map(async id => { try { return await (await fetch(`themes/${id}/manifest.json`, { cache: 'no-cache' })).json(); } catch (e) { return null; } }))).filter(Boolean);
   } catch (e) { themes = []; }
   setTab('library');
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // self-update: when a new service worker takes over, reload to pick up fresh code (deferred while a session runs)
+    const hadController = !!navigator.serviceWorker.controller; let reloading = false;
+    const reload = () => { if (reloading) return; if (window.__ws?.started && !window.__ws.finished && !window.__ws.closed) { window.__reloadPending = true; return; } reloading = true; location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) reload(); });
+    navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'sw-updated' && hadController) reload(); });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+      setInterval(() => { if (window.__reloadPending && !(window.__ws?.started && !window.__ws.finished)) reload(); }, 5000);
+    }).catch(() => {});
+  }
   window.__app = { get settings() { return settings; }, themes, audio, get player() { return player; } };
   const auto = qs.get('autostart');            // debug: ?autostart=<themeId> opens the start sheet
   if (auto) { const t = themes.find(x => x.id === auto); if (t) openSheet(t); }

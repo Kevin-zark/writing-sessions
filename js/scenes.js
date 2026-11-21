@@ -106,10 +106,22 @@ export class JourneyStage {
     this.pending = want;
     const v = L.video;
     if (cur.kind === 'bridge') return;            // its own onended swaps to the next loop
-    if (!v.ended) { v.loop = false; v.onended = () => this._swap(want); }
+    if (!v.ended) { v.loop = false; this._onEnd(v, () => this._swap(want)); }
     else this._swap(want);
   }
 
+  /** Run `fn` once when `v` reaches its end. `ended` alone is not reliable (WebKit can stall just short of EOS and
+   *  never fire it), so a 40 ms watcher also fires at duration-0.1 s or when playback freezes in the last 1.5 s. */
+  _onEnd(v, fn) {
+    clearInterval(v._wi); let fired = false, last = -1, tAdv = Date.now();
+    const go = () => { if (fired) return; fired = true; clearInterval(v._wi); v.onended = null; fn(); };
+    v.onended = go;
+    v._wi = setInterval(() => {
+      const t = v.currentTime, d = v.duration || 0;
+      if (t !== last) { last = t; tAdv = Date.now(); }
+      if (v.ended || (d && t >= d - 0.1) || (d && t > d - 1.5 && !v.paused && Date.now() - tAdv > 900)) go();
+    }, 40);
+  }
   _maybePreload(pos) {
     const n = this.cur + 1, it = this.plan.items[n]; if (!it) return;
     const H = this.layers[1 - this.top];
@@ -120,14 +132,23 @@ export class JourneyStage {
   _prepare(H, n) {
     const it = this.plan.items[n]; H.item = n; H.ready = false;
     H.img.src = this.url(it.still || this.plan.items[n + 1]?.still || '');
-    H.video.loop = it.kind !== 'bridge'; H.video.onended = null;
+    clearInterval(H.video._wi); H.video.loop = it.kind !== 'bridge'; H.video.onended = null;
     if (!it.clip || this.failed.has(it.clip)) { H.mode = 'still'; return Promise.resolve(false); }
     return new Promise((resolve) => {
       const v = H.video; let done = false;
-      const fin = (ok) => { if (done) return; done = true; clearTimeout(to); v.oncanplay = v.onerror = null; H.ready = ok; if (!ok) this.failed.add(it.clip); resolve(ok); };
-      const to = setTimeout(() => fin(false), 8000);
-      v.onerror = () => fin(false); v.oncanplay = () => fin(true);
+      // iOS Safari ignores preload="auto" (Low Power Mode / cellular) and never fires canplay for a paused,
+      // hidden video, so we nudge it with a muted play() and pause again once it has data.
+      const fin = (ok, hard) => {
+        if (done) return; done = true; clearTimeout(to); v.oncanplay = v.onloadeddata = v.onerror = null; H.ready = ok;
+        if (ok) { try { v.pause(); v.currentTime = 0; } catch (e) {} }
+        else if (hard) this.failed.add(it.clip);     // only a real decode/404 error is permanent; a slow network is retried
+        resolve(ok);
+      };
+      const to = setTimeout(() => fin(false, false), 25000);
+      v.onerror = () => fin(false, true);
+      v.oncanplay = () => fin(true); v.onloadeddata = () => { if (v.readyState >= 3) fin(true); };
       v.src = this.url(it.clip); v.load();
+      try { const pp = v.play(); if (pp && pp.catch) pp.catch(() => {}); } catch (e) {}
     });
   }
   async _swap(n) {
@@ -146,7 +167,7 @@ export class JourneyStage {
     // hide old layer a frame later
     requestAnimationFrame(() => requestAnimationFrame(() => { if (my === this.token) { old.el.style.opacity = '0'; try { old.video.pause(); } catch (e) {} old.item = -1; } }));
     // bridges: swap to the next loop when the bridge ends
-    if (it.kind === 'bridge') H.video.onended = () => { if (this.cur === n) this._swap(n + 1); };
+    if (it.kind === 'bridge') this._onEnd(H.video, () => { if (this.cur === n) this._swap(n + 1); });
   }
   async _hard(n, { instant = false, pos } = {}) {
     const my = ++this.token, it = this.plan.items[n]; if (!it) return;
@@ -162,7 +183,7 @@ export class JourneyStage {
       // join a bridge part-way through if we arrived late
       if (it.kind === 'bridge' && pos != null && this.speed === 1) { const off = pos - it.start; if (off > 0.2 && off < (H.video.duration || 8)) H.video.currentTime = off; }
       const p = H.video.play(); if (p?.catch) p.catch(() => {});
-      if (it.kind === 'bridge') H.video.onended = () => { if (this.cur === n && this.speed === 1) this._swap(n + 1); };
+      if (it.kind === 'bridge') this._onEnd(H.video, () => { if (this.cur === n && this.speed === 1) this._swap(n + 1); });
     } else {
       H.mode = 'kenburns'; H.video.removeAttribute('src'); try { H.video.load(); } catch (e) {}
       H.img.src = this.url(it.still || this.plan.items[n + 1]?.still || this.plan.items[n - 1]?.still);

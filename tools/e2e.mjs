@@ -1,15 +1,17 @@
-import { chromium, devices } from 'playwright';
+import { chromium, webkit, devices } from 'playwright';
 import fs from 'fs';
 const SHOTS = '/workspace/writing-sessions/screenshots/';
 const URL = 'http://localhost:8099/';
 const phone = devices['iPhone 14'];
-const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+// BROWSER=webkit runs the same suite in WebKit (real H.264 clips, closest to iOS Safari available on Linux)
+const WK = process.env.BROWSER === 'webkit';
+const browser = WK ? await webkit.launch() : await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const results = {};
 const ok = (name, cond, extra='') => { results[name] = !!cond; console.log((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); };
 
 async function newCtx(opts = {}, video = true) {
   const ctx = await browser.newContext({ ...phone, ...opts });
-  if (video) await ctx.route('**/clips/*.mp4', r => { const n = r.request().url().split('/').pop().replace('.mp4', '.webm'); r.fulfill({ body: fs.readFileSync('/tmp/webm/' + n), contentType: 'video/webm' }); });
+  if (video && !WK) await ctx.route('**/clips/*.mp4', r => { const n = r.request().url().split('/').pop().replace('.mp4', '.webm'); r.fulfill({ body: fs.readFileSync('/tmp/webm/' + n), contentType: 'video/webm' }); });
   return ctx;
 }
 
@@ -24,8 +26,11 @@ async function newCtx(opts = {}, video = true) {
   await page.click('#begin');
   await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   ok('A: session started, audio ctx running', await page.evaluate(() => window.__app.audio.ctx.state) === 'running');
-  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.v2 && window.__ws.loaded.music === 2 && window.__ws.loaded.amb && window.__ws.loaded.layers === 14), JSON.stringify(await page.evaluate(() => window.__ws.loaded)));
-  await page.waitForTimeout(3500);
+  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.v2 && window.__ws.loaded.music === 2 && window.__ws.loaded.amb && window.__ws.loaded.layers >= 3), JSON.stringify(await page.evaluate(() => window.__ws.loaded)));
+  ok('A: remaining ambience layers decode in the background (all 14)', await page.waitForFunction(() => Object.keys(window.__app.audio.lib).length === 14 && window.__app.audio.activeLayers().length >= 1, null, { timeout: 60000 }).then(() => true).catch(() => false));
+  ok('A: music is audible in the intro (analyser on the music bus)', await page.evaluate(async () => { const a = window.__app.audio, an = a.ctx.createAnalyser(); an.fftSize = 1024; a.musicBus.connect(an); const buf = new Float32Array(1024); let mx = 0; for (let i = 0; i < 12; i++) { await new Promise(r => setTimeout(r, 120)); an.getFloatTimeDomainData(buf); let s = 0; for (const v of buf) s += v * v; mx = Math.max(mx, Math.sqrt(s / 1024)); } window.__introRms = mx; return mx > 0.003 && a.ctx.state === 'running'; }), await page.evaluate(() => 'rms ' + window.__introRms));
+  ok('A: video element is really playing (not paused, time advancing)', await (async () => { const t1 = await page.evaluate(() => { const v = [...document.querySelectorAll('video.on')].at(-1); return v && !v.paused ? v.currentTime : -1; }); await page.waitForTimeout(1200); const t2 = await page.evaluate(() => { const v = [...document.querySelectorAll('video.on')].at(-1); return v && !v.paused ? v.currentTime : -1; }); return t1 >= 0 && t2 !== t1; })());
+  await page.waitForTimeout(2500);
   await page.screenshot({ path: SHOTS + '03-intro-card-iphone.png' });
   await page.click('#player', { position: { x: 200, y: 400 } }).catch(()=>{});
   await page.evaluate(() => window.__ws.skip(1));      // -> sprint 1
