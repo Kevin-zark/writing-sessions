@@ -103,7 +103,8 @@ function renderSettings() {
       <label class="field col"><span>Webhook URL <small>(optional)</small></span><input id="f-webhookUrl" type="url" placeholder="https://ntfy.sh/your-secret-topic" value="${esc(settings.webhookUrl)}"></label>
       <label class="field col"><span>Email for requests <small>(used when no webhook)</small></span><input id="f-mailtoTo" type="email" placeholder="you@example.com" value="${esc(settings.mailtoTo || CONFIG.REQUEST_MAILTO_TO)}"></label>
     </section>
-    <p class="muted small center">v1 prototype${SPEED !== 1 ? ` · debug speed ×${SPEED}` : ''}</p>`;
+    <p class="muted small center"><a href="preview.html" style="color:var(--accent,#d9b26f)">Theme preview &amp; QA</a></p>
+    <p class="muted small center">v2 journeys${SPEED !== 1 ? ` · debug speed ×${SPEED}` : ''}</p>`;
   const v = $('#view-settings');
   v.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { applyPreset(b.dataset.preset); renderSettings(); });
   const refresh = () => { const s2 = summary(); $('#set-sum').textContent = `${s2.text} · about ${s2.total} total`; };
