@@ -62,6 +62,7 @@ if (RUNS.includes('A')) {
   await page.screenshot({ path: SHOTS + '06-sprint-landscape.png' });
   // pause / resume
   await page.evaluate(() => window.__ws.pause());
+  await page.waitForTimeout(450);          // let the last display tick land
   const c1 = await page.evaluate(() => document.querySelector('.hud-clock').textContent);
   await page.waitForTimeout(2200);
   const c2 = await page.evaluate(() => document.querySelector('.hud-clock').textContent);
@@ -113,14 +114,14 @@ if (RUNS.includes('A')) {
   const q2 = await P(); ok('A: double-tap on the left side rewinds 5 s', q1 - q2 > 3.5 && q1 - q2 < 6.5, (q1 - q2).toFixed(2));
   ok('A: media session has seekbackward/seekforward handlers', await page.evaluate(() => { let n = 0; for (const a of ['seekbackward','seekforward']) { try { navigator.mediaSession.setActionHandler(a, navigator.mediaSession.__h || (() => {})); n++; } catch (e) {} } return n === 2; }));
   // backgrounding: no element re-creation, no extra audio layers, clock keeps wall-clock time
-  const snap = await page.evaluate(() => { document.querySelectorAll('#player video').forEach((v, i) => v.dataset.keep = 'k' + i); const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos() }; });
+  const snap = await page.evaluate(() => { document.querySelectorAll('#player video').forEach((v, i) => v.dataset.keep = 'k' + i); const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos(), wall: Date.now() }; });
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
   await page.waitForTimeout(2500);
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
   await page.waitForTimeout(1500);
-  const after = await page.evaluate(() => { const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, kept: document.querySelectorAll('#player video[data-keep]').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos(), st: a.ctx.state, paused: window.__ws.paused }; });
+  const after = await page.evaluate(() => { const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, kept: document.querySelectorAll('#player video[data-keep]').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos(), wall: Date.now(), st: a.ctx.state, paused: window.__ws.paused }; });
   ok('A: hide/show keeps the same media elements and audio layers (no restart, no doubles)', after.vids === snap.vids && after.kept === snap.vids && after.layers === snap.layers && after.srcs <= snap.srcs + 1 && after.st === 'running' && !after.paused, JSON.stringify({ snap, after }));
-  ok('A: clock kept wall-clock time while hidden (+~4 s)', after.pos - snap.pos > 3 && after.pos - snap.pos < 7, (after.pos - snap.pos).toFixed(2));
+  ok('A: clock kept wall-clock time while hidden (pos advanced exactly as much as real time)', after.pos - snap.pos > 3 && Math.abs((after.pos - snap.pos) - (after.wall - snap.wall) / 1000) < 0.6, (after.pos - snap.pos).toFixed(2) + ' vs wall ' + ((after.wall - snap.wall) / 1000).toFixed(2)); 
   // rotation
   await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(500);
   const r1 = await page.evaluate(() => ({ kept: document.querySelectorAll('#player video[data-keep]').length, vids: document.querySelectorAll('#player video').length, o: document.querySelector('#player').dataset.orient, pos: window.__ws.clock.pos(), st: window.__app.audio.ctx.state }));

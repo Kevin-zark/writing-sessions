@@ -18,6 +18,12 @@ await p.evaluate(() => window.__ws.seekBy(5)); await p.waitForTimeout(1500);
 console.log('after +5s', JSON.stringify(await probe()));
 await p.evaluate(() => window.__ws.skip(1)); await p.waitForTimeout(7000);
 console.log('in sprint', JSON.stringify(await probe()));
+const grab = () => p.evaluate(() => { const c = document.querySelector('#player canvas'); if (!c) return null; const g = document.createElement('canvas'); g.width = 160; g.height = 90; const x = g.getContext('2d'); x.drawImage(c, 0, 0, 160, 90); return [...x.getImageData(0, 0, 160, 90).data]; });
+const f1 = await grab(); await p.waitForTimeout(2500); const f2 = await grab();
+if (f1 && f2) { let n = 0; for (let i = 0; i < f1.length; i += 4) if (Math.abs(f1[i] - f2[i]) + Math.abs(f1[i + 1] - f2[i + 1]) + Math.abs(f1[i + 2] - f2[i + 2]) > 24) n++; console.log('window canvas changed pixels over 2.5 s:', n); }
+// landmark pass: jump into the middle of the first landmark window
+await p.evaluate(() => { const w = window.__ws, it = w.plan.items.find(x => x.lmWin && x.scene?.landmark?.src); if (it) { w.clock.seek((it.lmWin[0] + it.lmWin[1]) / 2); w._jumpStage(); w._tick(); } }); await p.waitForTimeout(2500);
+console.log('at landmark', JSON.stringify(await probe()));
 await p.screenshot({ path: '/tmp/live-wk.png' });
 console.log('errors', JSON.stringify(errs));
 await b.close();
