@@ -11,9 +11,12 @@
     { "id": "village", "title": "Arriving at the village", "clip": "scenes/village-arrival.mp4", "still": "scenes/village-arrival.jpg" }
   ],
   "music": [
-    { "title": "Placeholder pad I (procedural, not Suno)", "src": "audio/placeholder-pad-1.mp3", "placeholder": true },
-    { "title": "Placeholder pad II (procedural, not Suno)", "src": "audio/placeholder-pad-2.mp3", "placeholder": true },
-    { "title": "Placeholder pad III (procedural, not Suno)", "src": "audio/placeholder-pad-3.mp3", "placeholder": true }
+    { "title": "Snowbound Compartment", "src": "audio/snowbound-compartment-a.mp3", "artist": "fullslopstudios (Suno)" },
+    { "title": "Snowbound Compartment (II)", "src": "audio/snowbound-compartment-b.mp3", "artist": "fullslopstudios (Suno)" },
+    { "title": "Letters by Lamplight", "src": "audio/letters-by-lamplight-a.mp3", "artist": "fullslopstudios (Suno)" },
+    { "title": "Letters by Lamplight (II)", "src": "audio/letters-by-lamplight-b.mp3", "artist": "fullslopstudios (Suno)" },
+    { "title": "Arrival at Hollowmere", "src": "audio/arrival-at-hollowmere-a.mp3", "artist": "fullslopstudios (Suno)" },
+    { "title": "Arrival at Hollowmere (II)", "src": "audio/arrival-at-hollowmere-b.mp3", "artist": "fullslopstudios (Suno)" }
   ],
   "ambience": { "title": "Train & rain (procedural placeholder)", "src": "audio/ambience-train-rain.mp3" },
   "intro": { "lines": ["Welcome, Writers...", "Find your seat. Open your story.", "The journey begins."] },

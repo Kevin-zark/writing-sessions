@@ -126,6 +126,10 @@ export class Player {
         this.audio.ensureMusic();
       }
     }
+    // lock-screen title follows the current music track
+    const tr = this.audio.currentTrack?.();
+    const key = tr ? (tr.title + '|' + tr.start) : '';
+    if (key !== this._trackKey) { this._trackKey = key; if (this.mediaOk) this._mediaMeta(); }
   }
 
   _enterSegment(loc) {
@@ -241,10 +245,18 @@ export class Player {
   _mediaMeta() {
     if (!this.mediaOk || typeof MediaMetadata === 'undefined') return;
     const seg = this.tl.segs[this.curSeg] || this.tl.segs[0];
-    const name = seg.type === 'sprint' ? `Sprint ${seg.n} of ${seg.of}` : seg.type === 'break' ? 'Break' : seg.type === 'intro' ? 'Welcome' : 'Wrap-up';
+    const phase = !seg ? 'Writing Sessions'
+      : seg.type === 'sprint' ? `Sprint ${seg.n} of ${seg.of}`
+      : seg.type === 'break' ? 'Break'
+      : seg.type === 'intro' ? 'Welcome' : 'Wrap-up';
     const art = new URL(this.base + this.m.cover, location.href).href;
-    navigator.mediaSession.metadata = new MediaMetadata({ title: this.m.title, artist: name, album: 'Writing Sessions',
-      artwork: [{ src: art, sizes: '1280x720', type: 'image/jpeg' }] });
+    const tr = this.audio.currentTrack?.() || {};
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: tr.title || this.m.title,
+      artist: tr.artist || 'Writing Sessions',
+      album: `${phase} · ${this.m.title}`,
+      artwork: [{ src: art, sizes: '1280x720', type: 'image/jpeg' }]
+    });
   }
 
   exit() {

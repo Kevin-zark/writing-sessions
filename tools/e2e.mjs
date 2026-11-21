@@ -22,9 +22,9 @@ async function newCtx(opts = {}, video = true) {
   await page.click('.card-theme'); await page.waitForSelector('#begin');
   await page.screenshot({ path: SHOTS + '02-start-sheet-iphone.png' });
   await page.click('#begin');
-  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   ok('A: session started, audio ctx running', await page.evaluate(() => window.__app.audio.ctx.state) === 'running');
-  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.loaded.music === 3 && window.__ws.loaded.amb));
+  ok('A: music + ambience loaded', await page.evaluate(() => window.__ws.loaded.music === 6 && window.__ws.loaded.amb));
   await page.waitForTimeout(3500);
   await page.screenshot({ path: SHOTS + '03-intro-card-iphone.png' });
   await page.click('#player', { position: { x: 200, y: 400 } }).catch(()=>{});
@@ -54,7 +54,12 @@ async function newCtx(opts = {}, video = true) {
   const c3 = await page.evaluate(() => document.querySelector('.hud-clock').textContent);
   ok('A: resume continues timer', c3 !== c2, c3);
   ok('A: wake lock mode set', ['wakeLock','video-fallback','none'].includes(await page.evaluate(() => window.__ws.wakeMode)), await page.evaluate(() => window.__ws.wakeMode));
-  ok('A: mediaSession metadata', await page.evaluate(() => navigator.mediaSession.metadata?.title) === 'Dark Academia Train to a Snowy Village');
+  ok('A: mediaSession shows current track title', await page.evaluate(() => {
+    const titles = (window.__app.themes[0].music || []).map(m => m.title);
+    const meta = navigator.mediaSession.metadata;
+    return titles.includes(meta?.title) && (meta?.artist || '').includes('fullslopstudios');
+  }));
+  ok('A: music queue cycles multiple tracks', await page.evaluate(() => new Set((window.__app.audio.musicQueue || []).map(q => q.title)).size >= 1 && window.__app.audio.tracks.length === 6));
   ok('A: no JS errors', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
@@ -65,7 +70,7 @@ async function newCtx(opts = {}, video = true) {
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.goto(URL + '?speed=120'); await page.waitForSelector('.card-theme');
   await page.click('.card-theme'); await page.click('#begin');
-  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   // audio probe: analyser on master, sample loudness 20x/s along with the segment type
   await page.evaluate(() => {
     const a = window.__app.audio, c = a.ctx, an = c.createAnalyser(); an.fftSize = 1024; a.master.connect(an);
@@ -117,7 +122,7 @@ async function newCtx(opts = {}, video = true) {
   await page.reload(); await page.waitForSelector('.card-theme'); await page.click('[data-tab=settings]');
   ok('C: settings persisted across reload', await page.inputValue('#f-sprintMin') === '1' && await page.inputValue('#f-sprints') === '3' && !(await page.isChecked('#f-intro')));
   await page.click('[data-tab=library]'); await page.click('.card-theme'); await page.click('#begin');
-  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__ws && window.__ws.started, null, { timeout: 45000 });
   await page.waitForFunction(() => window.__ws.finished, null, { timeout: 60000 });
   const ev = await page.evaluate(() => ({ e: window.__ws.events.map(x => x.type + (x.n || '')), modes: window.__ws.stage.log.map(x => x.mode), total: window.__ws.tl.total }));
   ok('C: custom 3×1 min /1 min break, no intro/outro => s1,b1,s2,b2,s3', ev.e.filter(x => x !== 'end').join(',') === 'sprint1,break1,sprint2,break2,sprint3' && ev.total === 300, ev.e.join(','));

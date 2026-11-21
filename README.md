@@ -45,8 +45,7 @@ Add a folder with a `manifest.json` and list its id in `themes/index.json`:
 * **Fallback**: if a clip is missing, fails, or autoplay is blocked (Low Power Mode) the still gets a slow Ken Burns pan instead.
 * **Scene changes** (`planScenes`): slots = max(scenes, sprints); cuts snap to the nearest sprint/break boundary when one is within 30 % of a slot,
   otherwise land mid-sprint, so changes are spread evenly. Crossfade is 3 s.
-* **Sample pack**: stills + clips are AI-generated (Grok Imagine). **Music/ambience are procedural placeholders** made by
-  `tools/make_placeholder_audio.py` (numpy + ffmpeg, fully original — no samples). Replace with Suno tracks by dropping mp3s into `audio/` and editing `music[]`.
+* **Sample pack**: stills + clips are AI-generated (Grok Imagine). **Music** for Dark Academia Train is from the Suno playlist "Writing Sessions – Dark Academia Train" (artist: fullslopstudios). Tracks are shuffled with 3 s crossfades during sprints so a long sprint cycles through the pack instead of looping one song. **Ambience** is still a procedural loop from `tools/make_placeholder_audio.py`.
 
 ## Request tab → delivery (`js/request.js`, `js/config.js`)
 The form (theme, mood, music notes) builds `{id, createdAt, theme, mood, music, status}`, stores it in `localStorage` (`ws.requests.v1`) and shows a **Sent** state + history.

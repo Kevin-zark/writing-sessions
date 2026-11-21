@@ -1,6 +1,6 @@
 // App-shell cache. Media (mp4/mp3) is deliberately NOT intercepted: iOS needs HTTP Range
 // responses for <video>/<audio>, which Cache API replays badly. The browser's HTTP cache handles media.
-const VER = 'ws-v1';
+const VER = 'ws-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/engine.js', 'js/audio.js', 'js/scenes.js',
   'js/player.js', 'js/request.js', 'js/config.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'themes/index.json', 'themes/dark-academia-train/manifest.json',

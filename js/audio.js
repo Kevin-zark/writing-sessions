@@ -8,7 +8,7 @@ export class SessionAudio {
   constructor() {
     this.ctx = null; this.vol = { music: 0.8, amb: 0.7, chime: 0.8 };
     this.tracks = []; this.ambBuf = null; this.musicEnd = 0; this.lastTrack = -1;
-    this.chimeNodes = []; this.musicSrcs = []; this.anchor = null; this.speed = 1; this.xf = 3;
+    this.chimeNodes = []; this.musicSrcs = []; this.musicQueue = []; this.anchor = null; this.speed = 1; this.xf = 3;
     this.chimeLog = []; // for tests / debugging: {sessionT, kind}
   }
   /** Must be called synchronously inside a user tap. */
@@ -43,7 +43,7 @@ export class SessionAudio {
   async loadTheme(manifest, base) {
     const out = { music: 0, amb: false, errors: [] };
     const jobs = (manifest.music || []).map(async (m) => {
-      try { this.tracks.push({ title: m.title, buf: await this._load(base + m.src) }); out.music++; }
+      try { this.tracks.push({ title: m.title, artist: m.artist || '', buf: await this._load(base + m.src) }); out.music++; }
       catch (e) { out.errors.push(m.src); }
     });
     if (manifest.ambience?.src) jobs.push((async () => {
@@ -150,9 +150,24 @@ export class SessionAudio {
       g.gain.setValueAtTime(1, start + dur - xf);
       g.gain.linearRampToValueAtTime(0, start + dur);
       s.start(start);
-      this.musicSrcs.push(s); this.musicEnd = start + dur - xf;
-      s.onended = () => { this.musicSrcs = this.musicSrcs.filter(x => x !== s); if (!this.musicSrcs.length) this.musicEnd = 0; };
+      const entry = { title: tr.title, artist: tr.artist, start, end: start + dur };
+      this.musicSrcs.push(s); this.musicQueue.push(entry); this.musicEnd = start + dur - xf;
+      s.onended = () => {
+        this.musicSrcs = this.musicSrcs.filter(x => x !== s);
+        this.musicQueue = this.musicQueue.filter(q => q !== entry);
+        if (!this.musicSrcs.length) this.musicEnd = 0;
+      };
     }
+  }
+
+  /** Track currently audible (the later start wins during a crossfade). */
+  currentTrack() {
+    if (!this.ctx || !this.musicQueue.length) return null;
+    const t = this.ctx.currentTime;
+    const playing = this.musicQueue.filter(q => t >= q.start && t < q.end);
+    if (playing.length) return playing[playing.length - 1];
+    const upcoming = this.musicQueue.filter(q => q.start > t).sort((a, b) => a.start - b.start)[0];
+    return upcoming || this.musicQueue[this.musicQueue.length - 1];
   }
 
   _chime(kind, when) {
@@ -182,7 +197,7 @@ export class SessionAudio {
     try { this.ambSrc?.stop(); } catch (e) {}
     this.musicSrcs.forEach(s => { try { s.stop(); } catch (e) {} });
     this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} });
-    this.musicSrcs = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0;
+    this.musicSrcs = []; this.musicQueue = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0; this.lastTrack = -1;
     this.tracks = []; this.ambBuf = null; this.anchor = null;
     // keep ctx alive (created from a gesture) for reuse
     this.musicBus?.gain.cancelScheduledValues(0); this.ambBus?.gain.cancelScheduledValues(0);
