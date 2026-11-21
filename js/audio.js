@@ -52,6 +52,62 @@ export class SessionAudio {
     await Promise.all(jobs);
     return out;
   }
+  // ---------- manifest v2: per-leg music pools + layered ambience ----------
+  /** Load only the given leg's tracks (and keep a small cache); returns the pool. */
+  async loadMusicPool(key, list, base) {
+    this.pools = this.pools || {};
+    if (this.pools[key]) return this.pools[key];
+    const pool = [];
+    await Promise.all((list || []).map(async (m) => { try { pool.push({ title: m.title, artist: m.artist || '', buf: await this._load(base + m.src), src: m.src }); } catch (e) { this.loadErrors = (this.loadErrors || []).concat(m.src); } }));
+    this.pools[key] = pool;
+    return pool;
+  }
+  /** Free pools not in `keep` (iOS memory). */
+  prunePools(keep) { for (const k of Object.keys(this.pools || {})) if (!keep.includes(k)) delete this.pools[k]; }
+  /** Switch the track pool. Not-yet-started queued tracks are cancelled; `hard` also stops the playing one. */
+  setMusicPool(pool, { hard = false } = {}) {
+    if (!pool || pool === this.tracks) return;
+    const c = this.ctx; this.tracks = pool; this.lastTrack = -1;
+    if (!c) return;
+    const now = c.currentTime;
+    this.musicQueue.forEach((q) => { if (q.start > now || hard) { try { q.src.stop(); } catch (e) {} } });
+    this.musicQueue = this.musicQueue.filter(q => !(q.start > now || hard));
+    this.musicSrcs = this.musicQueue.map(q => q.src);
+    this.musicEnd = this.musicQueue.length ? Math.max(...this.musicQueue.map(q => q.end - this.xf)) : 0;
+    this.ensureMusic();
+  }
+  /** Decode the theme's ambience library (each entry loops seamlessly). */
+  async loadAmbienceLib(lib, base) {
+    this.lib = {};
+    await Promise.all(Object.entries(lib || {}).map(async ([k, v]) => {
+      try { this.lib[k] = { ...v, buf: await this._load(base + v.src) }; } catch (e) { this.loadErrors = (this.loadErrors || []).concat(v.src); }
+    }));
+    return Object.keys(this.lib).length;
+  }
+  /** Start every library layer looping at gain 0 (phase-staggered so beds never line up). */
+  startLayers() {
+    const c = this.ctx; if (!c || this.layerNodes) return;
+    this.layerNodes = {};
+    Object.entries(this.lib || {}).forEach(([k, v], i) => {
+      const s = c.createBufferSource(), g = c.createGain(); s.buffer = v.buf; s.loop = true; g.gain.value = 0;
+      s.connect(g); g.connect(this.ambBus); s.start(0, (i * 7.3) % Math.max(1, v.buf.duration));
+      this.layerNodes[k] = { s, g, target: 0 };
+    });
+  }
+  /** Ramp every layer to its gain in `layers` ([{layer, gain}]) over `sec` seconds; others fade to 0. */
+  setLayers(layers, sec = 4) {
+    const c = this.ctx; if (!c || !this.layerNodes) return;
+    const want = {}; (layers || []).forEach(l => { if (this.lib[l.layer]) want[l.layer] = (l.gain ?? 1) * (this.lib[l.layer].gain ?? 1); });
+    const now = c.currentTime;
+    for (const [k, n] of Object.entries(this.layerNodes)) {
+      const t = want[k] || 0; if (Math.abs(t - n.target) < 1e-4) continue;
+      n.target = t; n.g.gain.cancelScheduledValues(now); n.g.gain.setValueAtTime(n.g.gain.value, now);
+      n.g.gain.linearRampToValueAtTime(t, now + Math.max(0.05, sec));
+    }
+    this.layerLog = (this.layerLog || []).concat([{ t: now, layers: Object.keys(want) }]).slice(-200);
+  }
+  activeLayers() { return Object.entries(this.layerNodes || {}).filter(([, n]) => n.target > 0).map(([k]) => k); }
+
   setVolumes(v) { Object.assign(this.vol, v); }
   get now() { return this.ctx ? this.ctx.currentTime : 0; }
   get running() { return this.ctx && this.ctx.state === 'running'; }
@@ -150,7 +206,7 @@ export class SessionAudio {
       g.gain.setValueAtTime(1, start + dur - xf);
       g.gain.linearRampToValueAtTime(0, start + dur);
       s.start(start);
-      const entry = { title: tr.title, artist: tr.artist, start, end: start + dur };
+      const entry = { title: tr.title, artist: tr.artist, start, end: start + dur, src: s };
       this.musicSrcs.push(s); this.musicQueue.push(entry); this.musicEnd = start + dur - xf;
       s.onended = () => {
         this.musicSrcs = this.musicSrcs.filter(x => x !== s);
@@ -195,6 +251,8 @@ export class SessionAudio {
   previewChime() { if (this.ctx) this._chime('rise', this.ctx.currentTime + 0.02); }
   close() {
     try { this.ambSrc?.stop(); } catch (e) {}
+    Object.values(this.layerNodes || {}).forEach(n => { try { n.s.stop(); } catch (e) {} });
+    this.layerNodes = null; this.lib = {}; this.pools = {};
     this.musicSrcs.forEach(s => { try { s.stop(); } catch (e) {} });
     this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} });
     this.musicSrcs = []; this.musicQueue = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0; this.lastTrack = -1;

@@ -59,3 +59,116 @@ export class SceneStage {
   resume() { this.layers.forEach(l => { if (l.mode === 'video' && l.el.style.opacity !== '0') l.video.play().catch(() => {}); l.img.style.animationPlayState = 'running'; }); }
   destroy() { this.token++; this.layers.forEach(l => { try { l.video.pause(); l.video.removeAttribute('src'); l.video.load(); } catch (e) {} l.el.remove(); }); }
 }
+
+// ---------------------------------------------------------------------------------------------
+// JourneyStage (manifest v2): plays the chained clip plan from journey.planJourney().
+// Two <video> layers. While a loop plays, the next item is preloaded (paused on frame 0) in the
+// hidden layer. When the plan says the next item is due, the current loop stops looping and the
+// swap happens on its `ended` event — loop end frame == bridge first frame, so the swap is
+// invisible (no fade). Out-of-order jumps (skip, seek, background tab, ?speed>1) crossfade.
+export class JourneyStage {
+  constructor(root, plan, base, { speed = 1, objectPosition } = {}) {
+    this.root = root; this.plan = plan; this.base = base; this.speed = speed; this.cur = -1; this.top = 0; this.token = 0;
+    this.layers = [0, 1].map(() => {
+      const el = document.createElement('div'); el.className = 'layer';
+      el.innerHTML = '<img class="still" alt="" decoding="async"><video muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>';
+      root.appendChild(el);
+      const v = el.querySelector('video'); v.muted = true; v.defaultMuted = true; v.setAttribute('muted', '');
+      if (objectPosition) { v.style.objectPosition = objectPosition; el.querySelector('img').style.objectPosition = objectPosition; }
+      return { el, img: el.querySelector('img'), video: v, mode: 'none', item: -1, ready: false };
+    });
+    this.log = []; this.pending = null; this.failed = new Set();
+  }
+  get info() { const it = this.plan.items[this.cur]; return { index: this.cur, id: it?.id, kind: it?.kind, mode: this.layers[this.top]?.mode, log: this.log }; }
+  url(p) { return p ? this.base + p : ''; }
+
+  /** Called every tick with the item index the clock says should be showing. */
+  update(want, pos) {
+    if (want < 0) return;
+    if (this.cur < 0) return this._hard(want, { instant: true, pos });
+    if (want === this.cur) { this._maybePreload(pos); return; }
+    const next = this.cur + 1, cur = this.plan.items[this.cur], it = this.plan.items[want];
+    const L = this.layers[this.top];
+    const chained = want === next && this.speed === 1 && L.mode === 'video' && !cur.xfadeNext && it.kind !== 'xfade' && !document.hidden;
+    if (!chained) return this._hard(want, { pos });
+    if (this.pending === want) {
+      // safety: if 'ended' never arrives, force the swap
+      if (pos > it.start + (cur.loopDur || 10) + 6) this._hard(want, { pos });
+      return;
+    }
+    this.pending = want;
+    const v = L.video;
+    if (cur.kind === 'loop' && !v.ended) { v.loop = false; v.onended = () => this._swap(want); }
+    else this._swap(want);
+  }
+
+  _maybePreload(pos) {
+    const n = this.cur + 1, it = this.plan.items[n]; if (!it) return;
+    const H = this.layers[1 - this.top];
+    if (H.item === n || this.speed !== 1) return;
+    if (it.start - pos > 25) return;            // preload ~25 s ahead
+    this._prepare(H, n);
+  }
+  _prepare(H, n) {
+    const it = this.plan.items[n]; H.item = n; H.ready = false;
+    H.img.src = this.url(it.still || this.plan.items[n + 1]?.still || '');
+    H.video.loop = it.kind !== 'bridge'; H.video.onended = null;
+    if (!it.clip || this.failed.has(it.clip)) { H.mode = 'still'; return Promise.resolve(false); }
+    return new Promise((resolve) => {
+      const v = H.video; let done = false;
+      const fin = (ok) => { if (done) return; done = true; clearTimeout(to); v.oncanplay = v.onerror = null; H.ready = ok; if (!ok) this.failed.add(it.clip); resolve(ok); };
+      const to = setTimeout(() => fin(false), 8000);
+      v.onerror = () => fin(false); v.oncanplay = () => fin(true);
+      v.src = this.url(it.clip); v.load();
+    });
+  }
+  async _swap(n) {
+    const H = this.layers[1 - this.top], old = this.layers[this.top], my = ++this.token;
+    if (H.item !== n) await this._prepare(H, n);
+    if (my !== this.token) return;
+    this.pending = null;
+    const it = this.plan.items[n];
+    if (!H.ready) return this._hard(n, {});
+    H.mode = 'video'; H.video.classList.add('on'); H.img.classList.remove('kb');
+    H.video.currentTime = 0;
+    const p = H.video.play(); if (p?.catch) p.catch(() => {});
+    if (it.kind === 'bridge') H.video.onended = () => { /* next update() call swaps on time */ H.video.pause(); };
+    H.el.style.transition = 'none'; H.el.style.opacity = '1'; H.el.style.zIndex = '2'; old.el.style.zIndex = '1';
+    this.top = 1 - this.top; this.cur = n;
+    this.log.push({ id: it.id, kind: it.kind, mode: 'chain', t: Date.now() });
+    // hide old layer a frame later
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (my === this.token) { old.el.style.opacity = '0'; try { old.video.pause(); } catch (e) {} old.item = -1; } }));
+    // bridges: swap to the next loop when the bridge ends
+    if (it.kind === 'bridge') H.video.onended = () => { if (this.cur === n) this._swap(n + 1); };
+  }
+  async _hard(n, { instant = false, pos } = {}) {
+    const my = ++this.token, it = this.plan.items[n]; if (!it) return;
+    this.pending = null;
+    const H = this.layers[1 - this.top], old = this.layers[this.top];
+    this.cur = n;
+    H.el.style.transition = 'none'; H.el.style.opacity = '0';
+    H.img.classList.remove('kb'); H.video.classList.remove('on');
+    const ok = H.item === n && H.ready ? true : await this._prepare(H, n);
+    if (my !== this.token) return;
+    if (ok) {
+      H.mode = 'video'; H.video.classList.add('on');
+      // join a bridge part-way through if we arrived late
+      if (it.kind === 'bridge' && pos != null && this.speed === 1) { const off = pos - it.start; if (off > 0.2 && off < (H.video.duration || 8)) H.video.currentTime = off; }
+      const p = H.video.play(); if (p?.catch) p.catch(() => {});
+      if (it.kind === 'bridge') H.video.onended = () => { if (this.cur === n && this.speed === 1) this._swap(n + 1); };
+    } else {
+      H.mode = 'kenburns'; H.video.removeAttribute('src'); try { H.video.load(); } catch (e) {}
+      H.img.src = this.url(it.still || this.plan.items[n + 1]?.still || this.plan.items[n - 1]?.still);
+      void H.img.offsetWidth; H.img.classList.add('kb');
+    }
+    H.el.style.zIndex = '2'; old.el.style.zIndex = '1'; void H.el.offsetWidth;
+    const fade = instant ? 0 : (this.speed === 1 ? 2500 : 300);
+    H.el.style.transition = fade ? `opacity ${fade}ms ease-in-out` : 'none'; H.el.style.opacity = '1';
+    this.top = 1 - this.top;
+    this.log.push({ id: it.id, kind: it.kind, mode: H.mode, t: Date.now() });
+    setTimeout(() => { if (my !== this.token) return; old.el.style.opacity = '0'; try { old.video.pause(); } catch (e) {} old.item = -1; }, fade + 80);
+  }
+  pause() { this.layers.forEach(l => { try { l.video.pause(); } catch (e) {} l.img.style.animationPlayState = 'paused'; }); }
+  resume() { const l = this.layers[this.top]; if (l.mode === 'video') l.video.play().catch(() => {}); this.layers.forEach(x => x.img.style.animationPlayState = 'running'); }
+  destroy() { this.token++; this.layers.forEach(l => { try { l.video.pause(); l.video.removeAttribute('src'); l.video.load(); } catch (e) {} l.el.remove(); }); }
+}
