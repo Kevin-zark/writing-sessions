@@ -28,24 +28,31 @@ the page is throttled with the screen locked.
 Audio only starts from the *Begin session* tap (iOS requirement).
 
 ## Theme packs (`themes/<id>/`)
-Add a folder with a `manifest.json` and list its id in `themes/index.json`:
-```jsonc
-{
-  "id": "dark-academia-train", "title": "…", "description": "…", "cover": "scenes/x.jpg", "accent": "#d9b26f",
-  "sceneMode": "journey",            // "journey" = walk first→last scene, "cycle" = loop them
-  "scenes": [{ "id": "window", "title": "…", "clip": "scenes/x.mp4", "still": "scenes/x.jpg" }],
-  "music":  [{ "title": "…", "src": "audio/track1.mp3" }],           // Suno exports go here
-  "ambience": { "src": "audio/ambience.mp3" },                        // seamless loop
-  "intro": { "lines": ["Welcome, Writers..."] }, "breakText": ["…"], "breakEndText": "…",
-  "outro": { "lines": ["Beautiful work, my friend!"] }
-}
-```
-* **Clips**: 6–10 s seamless loops, H.264 mp4 (`-pix_fmt yuv420p -movflags +faststart`), muted, ≤ ~2 MB each. They play with `muted loop playsinline`.
-  The sample clips were generated image→video with the first and last frame set to the same still so they loop.
-* **Fallback**: if a clip is missing, fails, or autoplay is blocked (Low Power Mode) the still gets a slow Ken Burns pan instead.
-* **Scene changes** (`planScenes`): slots = max(scenes, sprints); cuts snap to the nearest sprint/break boundary when one is within 30 % of a slot,
-  otherwise land mid-sprint, so changes are spread evenly. Crossfade is 3 s.
-* **Sample pack**: stills + clips are AI-generated (Grok Imagine). **Music** for Dark Academia Train is from the Suno playlist "Writing Sessions – Dark Academia Train" (artist: fullslopstudios). Tracks are shuffled with 3 s crossfades during sprints so a long sprint cycles through the pack instead of looping one song. **Ambience** is still a procedural loop from `tools/make_placeholder_audio.py`.
+
+Each theme is a folder listed in `themes/index.json`, described by its `manifest.json`.
+
+**Schema 2: journeys.** This is what Dark Academia Train uses. The full spec and the step-by-step build process are in [`docs/THEME_RECIPE.md`](docs/THEME_RECIPE.md).
+
+- `stations[5]` are the intro, the 3 break platforms and the arrival.
+- `legs[4]` each have 6 `views`, a base `ambience` and a `music` pool of 1–2 songs × 2 versions.
+- Every view has a 10 s seamless loop (`clips/loop-*.mp4`, same first/last frame) and an 8 s bridge clip to the next view (`clips/br-*.mp4`).
+- `ambienceLib` lists the looped layers in `audio/amb/`, which are CC0 Freesound recordings. Each clip mixes its own layers.
+- `credits` records the source and licence of every audio file.
+- `status`, `owner` and `origin` are forward-compatible fields; no UI uses them yet.
+- `js/journey.js` plans the chain for any session length:
+  - stations go to the breaks nearest each leg boundary;
+  - the arrival lands at the end;
+  - each view dwells for at least 25 s.
+- `js/scenes.js` `JourneyStage` plays loop → bridge → loop with no cuts. It switches to crossfades only for skips or sped-up test runs, and falls back to a Ken Burns still if a clip fails.
+- `preview.html?theme=<id>` previews any clip with its ambience mix, plays the chain from any point, and holds per-clip notes and the ambience QA table.
+- Build tools:
+  - `tools/seam_fix.py` (seam smoothing + encode);
+  - `tools/match_clips.py` (verifies each clip's endpoints);
+  - `tools/fs_search.py` (Freesound CC0 search);
+  - `tools/make_ambience.py` (loop, loudness-match and QA the layers);
+  - `tools/build_train_manifest.py`.
+
+**Schema 1** (a flat `scenes[]`, `music[]` and one ambience file) is still supported by the player.
 
 ## Request tab → delivery (`js/request.js`, `js/config.js`)
 The form (theme, mood, music notes) builds `{id, createdAt, theme, mood, music, status}`, stores it in `localStorage` (`ws.requests.v1`) and shows a **Sent** state + history.
