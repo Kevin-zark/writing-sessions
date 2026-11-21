@@ -15,17 +15,17 @@ stations = [
  ('s4', 'Hollowmere University', [L('station_walla', .7), L('luggage', .5), L('bells', .35), L('forest_wind', .3)]),
 ]
 legs = [
- ('city', 'The misty city', 'c', [L('train', .6), L('city', .55)], trk('Letters by Lamplight', 'letters-by-lamplight'), [
+ ('city', 'The misty city', 'c', [L('train', 1.0), L('city', .55)], trk('Letters by Lamplight', 'letters-by-lamplight'), [
    ('Rooftops in the fog', []), ('The cathedral', [L('bells', .6)]), ('The iron bridge', [L('city', .7), L('stream', .2)]),
    ('Terraced lanes', []), ('The old clock mill', [L('city', .4)]), ('The outskirts', [L('city', .3)])]),
- ('lake', 'Wrenmere Lake in the rain', 'l', [L('train', .55), L('rain_glass', .7)], trk('Rain over Wrenmere Lake', 'rain-over-wrenmere-lake'), [
+ ('lake', 'Wrenmere Lake in the rain', 'l', [L('train', 1.0), L('rain_glass', .7)], trk('Rain over Wrenmere Lake', 'rain-over-wrenmere-lake'), [
    ('Birches by the water', []), ('The open lake', [L('lake_lap', .35)]), ('The old jetty', [L('lake_lap', .7)]),
    ('The shore chapel', [L('lake_lap', .4)]), ('The causeway', [L('lake_lap', .8)]), ('Sleet at the far shore', [L('rain_glass', .45), L('forest_wind', .45)])]),
- ('forest', 'The snow-hushed forest', 'f', [L('train_soft', .75), L('forest_wind', .5)], trk('Snowbound Compartment', 'snowbound-compartment'), [
+ ('forest', 'The snow-hushed forest', 'f', [L('train_soft', 1.0), L('forest_wind', .5)], trk('Snowbound Compartment', 'snowbound-compartment'), [
    ('Snow-laden pines', []), ('Light through the firs', [L('forest_wind', .35)]), ('The frozen stream', [L('stream', .7)]),
    ('The deer clearing', []), ("The woodcutter's cabin", []), ('The mountains rise', [L('wind_high', .35)])]),
- ('mountains', 'The high passes', 'm', [L('train', .55), L('wind_high', .6)], trk('The High Pass', 'the-high-pass') + trk('Arrival at Hollowmere', 'arrival-at-hollowmere'), [
-   ('The climb', [L('wind_high', .8)]), ('The viaduct', [L('wind_high', .9)]), ('The tunnel', [L('tunnel', .9), L('wind_high', 0), L('train', .3)]),
+ ('mountains', 'The high passes', 'm', [L('train', 1.0), L('wind_high', .6)], trk('The High Pass', 'the-high-pass') + trk('Arrival at Hollowmere', 'arrival-at-hollowmere'), [
+   ('The climb', [L('wind_high', .8)]), ('The viaduct', [L('wind_high', .9)]), ('The tunnel', [L('tunnel', .9), L('wind_high', 0), L('train', .6)]),
    ('Blizzard on the pass', [L('blizzard', .9), L('window_whistle', .7), L('wind_high', .3)]), ('The frozen falls', [L('wind_high', .35)]),
    ('Hollowmere in the valley', [L('wind_high', .3), L('bells', .2)])]),
 ]
@@ -35,7 +35,7 @@ SRC = {
  '235827': ('Soft rain on roof window', 'Metadex'), '614299': ('Gentle waves on a lake', 'TheFlyFishingFilmmaker'), '352436': ('Forest, Winter, Light Wind', 'Kinoton'),
  '318064': ('Water_Lapping_River', 'ceich93'), '117513': ('winter wind 01c', 'klangfabrik'), '69512': ('Winter wind whistling through window', 'audible-edge'),
  '475500': ('Train_tunnel_1', 'o_ciz'), '256626': ('EustonStation_ST', 'habbis92'), '275173': ('Luggage_rolling4', 'schaft')}
-DESC = {'train': 'Carriage rumble + wheel clatter (moving legs)', 'train_soft': 'Same carriage, low-passed: wheels muffled by snow', 'city': 'Distant city hum through glass',
+DESC = {'train': 'Carriage rumble + wheel clatter, mid-boosted so phone speakers can reproduce it (moving legs)', 'train_soft': 'Same carriage, low-passed: wheels muffled by snow', 'city': 'Distant city hum through glass',
  'bells': 'Distant church bells', 'rain_glass': 'Light rain on the window', 'lake_lap': 'Lake water lapping, heard through glass', 'forest_wind': 'Soft wind in winter pines',
  'stream': 'Running water under ice / below the bridge', 'wind_high': 'Mountain wind', 'blizzard': 'Howling blizzard gusts', 'window_whistle': 'Wind whistling through the window frame',
  'tunnel': 'Enclosed tunnel roar (pressure change)', 'station_walla': 'Station hall voices + footsteps, muffled through glass', 'luggage': 'Luggage wheels and handling, muffled'}

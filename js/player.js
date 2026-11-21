@@ -16,6 +16,8 @@ class Clock {
 const svg = (d) => `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">${d}</svg>`;
 const ICON = {
   prev: svg('<path d="M6 5h2v14H6zM20 5v14L9.5 12z"/>'), next: svg('<path d="M16 5h2v14h-2zM4 5l10.5 7L4 19z"/>'),
+  back5: svg('<path d="M12 5V2L7 6.5 12 11V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/><text x="12" y="16.4" font-size="6.4" font-weight="700" text-anchor="middle" font-family="system-ui,sans-serif">5</text>'),
+  fwd5: svg('<path d="M12 5V2l5 4.5L12 11V8a5 5 0 1 0 5 5h2a7 7 0 1 1-7-8z"/><text x="12" y="16.4" font-size="6.4" font-weight="700" text-anchor="middle" font-family="system-ui,sans-serif">5</text>'),
   pause: svg('<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'), play: svg('<path d="M7 4l13 8-13 8z"/>'), close: svg('<path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>'),
 };
 
@@ -44,11 +46,14 @@ export class Player {
         <button class="ctl close" aria-label="End session">${ICON.close}</button>
         <div class="ctl-row">
           <button class="ctl prev" aria-label="Previous section">${ICON.prev}</button>
+          <button class="ctl back5" aria-label="Back 5 seconds">${ICON.back5}</button>
           <button class="ctl play" aria-label="Pause">${ICON.pause}</button>
+          <button class="ctl fwd5" aria-label="Forward 5 seconds">${ICON.fwd5}</button>
           <button class="ctl next" aria-label="Next section">${ICON.next}</button>
         </div>
         <div class="speedbadge"></div>
       </div>
+      <div class="seekfx l"><span></span></div><div class="seekfx r"><span></span></div>
       <div class="prep"><p>Preparing your session…</p></div>
       <div class="confirm" hidden><div><p>End this session?</p><button class="btn ghost no">Keep writing</button><button class="btn yes">End session</button></div></div>`;
     r.hidden = false; r.classList.add('open'); r.classList.remove('done');
@@ -62,16 +67,36 @@ export class Player {
       : new SceneStage(this.el.stage, this.m.scenes || [], this.base);
     r.style.setProperty('--accent', this.m.accent || '#d9b26f');
     // controls: tap to reveal, auto-hide
-    this._onTap = (e) => { if (e.target.closest('.ctl,.confirm')) return; this._showControls(); };
+    // tap = show controls; double-tap left/right third = -5 s / +5 s (like YouTube)
+    this._onTap = (e) => {
+      if (e.target.closest('.ctl,.confirm')) return;
+      const now = Date.now(), w = r.clientWidth || 1, x = (e.clientX ?? w / 2) / w, side = x < 0.4 ? -1 : x > 0.6 ? 1 : 0;
+      if (side && this._lastTap && now - this._lastTap.t < 320 && this._lastTap.side === side) { this._lastTap = null; this.seekBy(5 * side); return; }
+      this._lastTap = { t: now, side }; this._showControls();
+    };
     r.addEventListener('click', this._onTap);
+    q('.back5').onclick = () => this.seekBy(-5);
+    q('.fwd5').onclick = () => this.seekBy(5);
     q('.play').onclick = () => this.paused ? this.resume() : this.pause();
     q('.next').onclick = () => this.skip(1);
     q('.prev').onclick = () => this.skip(-1);
     q('.close').onclick = () => { this.el.confirm.hidden = false; };
     q('.confirm .no').onclick = () => { this.el.confirm.hidden = true; };
     q('.confirm .yes').onclick = () => this.exit();
-    this._vis = () => { if (document.visibilityState === 'visible' && this.started && !this.finished) { this._acquireWake(); if (!this.paused) { this.audio.resume(); this.stage.resume(); } this._tick(); } };
+    // Backgrounding / rotating must never restart or re-seek media. The clock is wall-clock based, so on return we only
+    // resume what iOS suspended and let the next tick re-sync the stage; hiding does nothing (audio keeps playing).
+    this._vis = () => {
+      if (document.visibilityState !== 'visible' || !this.started || this.finished) return;
+      this._acquireWake();
+      if (!this.paused) { this.audio.resume(); this.stage.resume(); }
+      this._tick();
+    };
+    this._pageshow = (e) => { if (e.persisted) this._vis(); };
+    this._rot = () => { clearTimeout(this._rotT); this._rotT = setTimeout(() => { this.root.dataset.orient = innerWidth > innerHeight ? 'landscape' : 'portrait'; if (this.started && !this.finished) this._tick(); }, 150); };
     document.addEventListener('visibilitychange', this._vis);
+    addEventListener('pageshow', this._pageshow);
+    addEventListener('resize', this._rot); addEventListener('orientationchange', this._rot);
+    this._rot();
   }
 
   _showControls() {
@@ -138,7 +163,7 @@ export class Player {
     // scenes
     if (this.v2) {
       const want = itemAt(this.plan, pos);
-      this.stage.update(want, pos);
+      if (!document.hidden) this.stage.update(want, pos);       // while backgrounded the picture is frozen anyway; one re-sync on return
       if (want !== this._item) this._applyItem(want);
       const lg = legAt(this.plan, pos);
       if (lg !== this.curLeg) this._enterLeg(lg);
@@ -243,7 +268,24 @@ export class Player {
     else i = (loc.elapsed > 3 / 1 || i === 0) ? i : i - 1;
     if (i >= this.tl.segs.length) { this.clock.seek(this.tl.total - 0.01); } else this.clock.seek(this.tl.segs[i].start + 0.01);
     this.audio.schedule(this.tl, this.clock.pos(), this.speed);
-    this._tick();
+    this._jumpStage(); this._tick();
+  }
+  /** Move the session clock by `d` seconds (±5 from the buttons, double-tap and lock screen); everything re-syncs to it. */
+  seekBy(d) {
+    if (!this.started || this.finished) return;
+    const cur = this.clock.pos(), p = Math.max(0, Math.min(this.tl.total - 0.5, cur + d));
+    this.clock.seek(p);
+    this.audio.schedule(this.tl, p, this.speed);
+    this._jumpStage(); this._tick(); this._showControls();
+    const fx = this.root.querySelector(d < 0 ? '.seekfx.l' : '.seekfx.r');
+    if (fx) { fx.querySelector('span').textContent = (d < 0 ? '−' : '+') + Math.abs(Math.round(d)) + 's'; fx.classList.remove('go'); void fx.offsetWidth; fx.classList.add('go'); }
+    this.events.push({ type: 'seek', d, pos: Math.round(p), at: Date.now() });
+  }
+  /** After any clock jump, put the picture where the clock says (bypasses the "stage ran ahead" guard). */
+  _jumpStage() {
+    const pos = this.clock.pos();
+    if (this.v2) { const w = itemAt(this.plan, pos); this.stage.jump(w, pos); this._applyItem(w); }
+    else { const sc = sceneAt(this.plan, pos); if (sc !== this.stage.cur) this.stage.show(sc); }
   }
 
   _finish() {
@@ -296,6 +338,7 @@ export class Player {
     const h = (a, f) => { try { navigator.mediaSession.setActionHandler(a, f); } catch (e) {} };
     h('play', () => this.resume()); h('pause', () => this.pause());
     h('nexttrack', () => this.skip(1)); h('previoustrack', () => this.skip(-1));
+    h('seekbackward', (d) => this.seekBy(-(d?.seekOffset || 5))); h('seekforward', (d) => this.seekBy(d?.seekOffset || 5));
   }
   _mediaMeta() {
     if (!this.mediaOk || typeof MediaMetadata === 'undefined') return;
@@ -316,7 +359,7 @@ export class Player {
 
   exit() {
     this.closed = true; clearInterval(this.timer); clearTimeout(this._ct);
-    document.removeEventListener('visibilitychange', this._vis); if (this._nudge) this.root.removeEventListener('pointerdown', this._nudge);
+    document.removeEventListener('visibilitychange', this._vis); removeEventListener('pageshow', this._pageshow); removeEventListener('resize', this._rot); removeEventListener('orientationchange', this._rot); clearTimeout(this._rotT); if (this._nudge) this.root.removeEventListener('pointerdown', this._nudge);
     this._releaseWake(); try { this.silent?.pause(); } catch (e) {}
     this.audio.close(); this.stage.destroy();
     if ('mediaSession' in navigator) { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; }

@@ -97,7 +97,9 @@ export class SessionAudio {
   _addLayerNode(k) {
     const c = this.ctx; if (!c || !this.layerNodes || this.layerNodes[k] || !this.lib[k]) return;
     const v = this.lib[k], s = c.createBufferSource(), g = c.createGain(); s.buffer = v.buf; s.loop = true; g.gain.value = 0;
-    s.connect(g); g.connect(this.ambBus); s.start(0, (Object.keys(this.libDef).indexOf(k) * 7.3) % Math.max(1, v.buf.duration));
+    // trim 50 ms/30 ms off the loop ends: some decoders keep the MP3 encoder-delay silence, which would click once per loop
+    const dur = v.buf.duration; if (dur > 2) { s.loopStart = 0.05; s.loopEnd = dur - 0.03; }
+    s.connect(g); g.connect(this.ambBus); s.start(0, 0.05 + (Object.keys(this.libDef).indexOf(k) * 7.3) % Math.max(1, dur - 0.1));
     this.layerNodes[k] = { s, g, target: 0 };
   }
   /** Create looping nodes (gain 0) for every decoded layer; later layers are added as they finish decoding. */
@@ -151,10 +153,10 @@ export class SessionAudio {
     const lvl = (seg) => {
       if (!seg) return { m: 0, a: 0 };
       switch (seg.type) {
-        case 'intro': return { m: 1.0, a: 0.5 };
-        case 'sprint': return { m: 1.0, a: 0.45 };
+        case 'intro': return { m: 1.0, a: 0.8 };
+        case 'sprint': return { m: 1.0, a: 1.0 };   // ambience bus full; the beds themselves sit ~8-10 LU under the music
         case 'break': return { m: 0.0, a: 1.0 };   // music out, ambience swells
-        case 'outro': return { m: 0.8, a: 0.5 };
+        case 'outro': return { m: 0.8, a: 0.7 };
         default: return { m: 0, a: 0 };
       }
     };

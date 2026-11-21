@@ -36,7 +36,7 @@
   "train": {
    "src": "audio/amb/train.mp3",
    "gain": 1.0,
-   "title": "Carriage rumble + wheel clatter (moving legs)",
+   "title": "Carriage rumble + wheel clatter, mid-boosted so phone speakers can reproduce it (moving legs)",
    "sourceId": "133099",
    "qa": {
     "seconds": 60.0,
@@ -336,7 +336,7 @@
    "ambience": [
     {
      "layer": "train",
-     "gain": 0.6
+     "gain": 1.0
     },
     {
      "layer": "city",
@@ -466,7 +466,7 @@
    "ambience": [
     {
      "layer": "train",
-     "gain": 0.55
+     "gain": 1.0
     },
     {
      "layer": "rain_glass",
@@ -601,7 +601,7 @@
    "ambience": [
     {
      "layer": "train_soft",
-     "gain": 0.75
+     "gain": 1.0
     },
     {
      "layer": "forest_wind",
@@ -722,7 +722,7 @@
    "ambience": [
     {
      "layer": "train",
-     "gain": 0.55
+     "gain": 1.0
     },
     {
      "layer": "wind_high",
@@ -811,7 +811,7 @@
       },
       {
        "layer": "train",
-       "gain": 0.3
+       "gain": 0.6
       }
      ],
      "bridge": {

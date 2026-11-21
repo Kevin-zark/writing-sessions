@@ -122,6 +122,8 @@ export class JourneyStage {
       if (v.ended || (d && t >= d - 0.1) || (d && t > d - 1.5 && !v.paused && Date.now() - tAdv > 900)) go();
     }, 40);
   }
+  /** Hard jump after a seek/skip (crossfade; ignores the chaining guards). */
+  jump(want, pos) { if (want < 0 || want === this.cur) return; this._hard(want, { pos }); }
   _maybePreload(pos) {
     const n = this.cur + 1, it = this.plan.items[n]; if (!it) return;
     const H = this.layers[1 - this.top];
@@ -134,12 +136,15 @@ export class JourneyStage {
     H.img.src = this.url(it.still || this.plan.items[n + 1]?.still || '');
     clearInterval(H.video._wi); H.video.loop = it.kind !== 'bridge'; H.video.onended = null;
     if (!it.clip || this.failed.has(it.clip)) { H.mode = 'still'; return Promise.resolve(false); }
-    return new Promise((resolve) => {
+    const tok = H.tok = (H.tok || 0) + 1;                 // a newer prepare on this layer supersedes (and must not be clobbered by) older ones
+    return H.prep = new Promise((resolve) => {
       const v = H.video; let done = false;
       // iOS Safari ignores preload="auto" (Low Power Mode / cellular) and never fires canplay for a paused,
       // hidden video, so we nudge it with a muted play() and pause again once it has data.
       const fin = (ok, hard) => {
-        if (done) return; done = true; clearTimeout(to); v.oncanplay = v.onloadeddata = v.onerror = null; H.ready = ok;
+        if (done) return; done = true; clearTimeout(to);
+        if (H.tok !== tok) return resolve(false);          // superseded: leave the layer state to the newer prepare
+        v.oncanplay = v.onloadeddata = v.onerror = null; H.ready = ok;
         if (ok) { try { v.pause(); v.currentTime = 0; } catch (e) {} }
         else if (hard) this.failed.add(it.clip);     // only a real decode/404 error is permanent; a slow network is retried
         resolve(ok);
@@ -153,7 +158,7 @@ export class JourneyStage {
   }
   async _swap(n) {
     const H = this.layers[1 - this.top], old = this.layers[this.top], my = ++this.token;
-    if (H.item !== n) await this._prepare(H, n);
+    if (H.item !== n) await this._prepare(H, n); else if (!H.ready && H.prep) await H.prep;   // preload still in flight: wait for it, don't restart it
     if (my !== this.token) return;
     this.pending = null;
     const it = this.plan.items[n];
@@ -176,7 +181,7 @@ export class JourneyStage {
     this.cur = n;
     H.el.style.transition = 'none'; H.el.style.opacity = '0';
     H.img.classList.remove('kb'); H.video.classList.remove('on');
-    const ok = H.item === n && H.ready ? true : await this._prepare(H, n);
+    const ok = H.item === n && H.ready ? true : (H.item === n && H.prep ? await H.prep : await this._prepare(H, n));
     if (my !== this.token) return;
     if (ok) {
       H.mode = 'video'; H.video.classList.add('on');

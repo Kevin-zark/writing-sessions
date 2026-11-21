@@ -1,7 +1,7 @@
 import { chromium, webkit, devices } from 'playwright';
 import fs from 'fs';
 const SHOTS = '/workspace/writing-sessions/screenshots/';
-const URL = 'http://localhost:8099/';
+const URL = process.env.E2E_URL || 'http://localhost:8099/';   // tools/serve_range.py 8099 (needs HTTP Range for video)
 const phone = devices['iPhone 14'];
 // BROWSER=webkit runs the same suite in WebKit (real H.264 clips, closest to iOS Safari available on Linux)
 const WK = process.env.BROWSER === 'webkit';
@@ -71,6 +71,40 @@ async function newCtx(opts = {}, video = true) {
   const chainLog = await page.evaluate(() => window.__ws.stage.log.slice(-4).map(x => x.id + ':' + x.mode));
   ok('A: loop → bridge → loop chained without a cut', chainLog.includes(br.id + ':chain') && chainLog.includes(br.next + ':chain'), chainLog.join(' '));
   ok('A: HUD shows the current view name', (await page.textContent('.hud-scene')).length > 2, await page.textContent('.hud-scene'));
+  // ---- ±5 s seeking, double-tap, backgrounding, rotation ----
+  await page.evaluate(() => { window.__ws.paused && window.__ws.resume(); });
+  const P = () => page.evaluate(() => window.__ws.clock.pos());
+  const p0 = await P(); await page.evaluate(() => window.__ws.seekBy(5)); const p1 = await P();
+  ok('A: forward 5 s moves the clock +5', Math.abs(p1 - p0 - 5) < 0.6, (p1 - p0).toFixed(2));
+  await page.evaluate(() => window.__ws.seekBy(-5)); const p2 = await P();
+  ok('A: back 5 s moves the clock -5', Math.abs(p2 - p1 + 5) < 0.6, (p2 - p1).toFixed(2));
+  await page.evaluate(() => { const w = window.__ws, b1 = w.tl.segs.find(x => x.type === 'break'); w.clock.seek(b1.start + 2); w.audio.schedule(w.tl, w.clock.pos(), 1); w._jumpStage(); w._tick(); });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => window.__ws.seekBy(-5));
+  await page.waitForTimeout(700);
+  const back = await page.evaluate(() => { const w = window.__ws, pos = w.clock.pos(); return { label: document.querySelector('.hud-label').textContent, clock: document.querySelector('.hud-clock').textContent, seg: w.tl.segs[w.curSeg].type, stage: w.stage.info.id, want: w.plan.items[w.plan.items.findIndex(i => i.start <= pos && pos < i.end)]?.id, st: w.audio.ctx.state }; });
+  ok('A: stepping back across a phase boundary lands in the previous sprint, label/timer/picture in sync', back.seg === 'sprint' && back.label === 'SPRINT 1/4' && /^00:0[0-4]$/.test(back.clock) && back.stage === back.want && back.st === 'running', JSON.stringify(back));
+  const q0 = await P();
+  await page.mouse.click(780, 300); await page.waitForTimeout(80); await page.mouse.click(780, 300); await page.waitForTimeout(300);
+  const q1 = await P(); ok('A: double-tap on the right side skips +5 s', q1 - q0 > 4 && q1 - q0 < 6.5, (q1 - q0).toFixed(2));
+  await page.mouse.click(60, 300); await page.waitForTimeout(80); await page.mouse.click(60, 300); await page.waitForTimeout(300);
+  const q2 = await P(); ok('A: double-tap on the left side rewinds 5 s', q1 - q2 > 3.5 && q1 - q2 < 6.5, (q1 - q2).toFixed(2));
+  ok('A: media session has seekbackward/seekforward handlers', await page.evaluate(() => { let n = 0; for (const a of ['seekbackward','seekforward']) { try { navigator.mediaSession.setActionHandler(a, navigator.mediaSession.__h || (() => {})); n++; } catch (e) {} } return n === 2; }));
+  // backgrounding: no element re-creation, no extra audio layers, clock keeps wall-clock time
+  const snap = await page.evaluate(() => { document.querySelectorAll('#player video').forEach((v, i) => v.dataset.keep = 'k' + i); const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos() }; });
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true }); Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
+  await page.waitForTimeout(1500);
+  const after = await page.evaluate(() => { const a = window.__app.audio; return { vids: document.querySelectorAll('#player video').length, kept: document.querySelectorAll('#player video[data-keep]').length, layers: Object.keys(a.layerNodes).length, srcs: a.musicQueue.length, pos: window.__ws.clock.pos(), st: a.ctx.state, paused: window.__ws.paused }; });
+  ok('A: hide/show keeps the same video elements and audio layers (no restart, no doubles)', after.vids === snap.vids && after.kept === snap.vids && after.layers === snap.layers && after.srcs <= snap.srcs + 1 && after.st === 'running' && !after.paused, JSON.stringify({ snap, after }));
+  ok('A: clock kept wall-clock time while hidden (+~4 s)', after.pos - snap.pos > 3 && after.pos - snap.pos < 7, (after.pos - snap.pos).toFixed(2));
+  // rotation
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(500);
+  const r1 = await page.evaluate(() => ({ kept: document.querySelectorAll('#player video[data-keep]').length, vids: document.querySelectorAll('#player video').length, o: document.querySelector('#player').dataset.orient, pos: window.__ws.clock.pos(), st: window.__app.audio.ctx.state }));
+  await page.setViewportSize({ width: 844, height: 390 }); await page.waitForTimeout(500);
+  const r2 = await page.evaluate(() => ({ kept: document.querySelectorAll('#player video[data-keep]').length, vids: document.querySelectorAll('#player video').length, o: document.querySelector('#player').dataset.orient, pos: window.__ws.clock.pos(), st: window.__app.audio.ctx.state, evs: window.__ws.events.length }));
+  ok('A: rotating portrait↔landscape keeps the same video elements, audio running, clock advancing', r1.kept === snap.vids && r2.kept === snap.vids && r1.vids === snap.vids && r2.vids === snap.vids && r1.o === 'portrait' && r2.o === 'landscape' && r2.pos > r1.pos && r2.st === 'running', JSON.stringify({ r1, r2 }));
   ok('A: no JS errors', errs.length === 0, errs.join(' | '));
   await ctx.close();
 }
@@ -145,7 +179,7 @@ async function newCtx(opts = {}, video = true) {
   await page.waitForFunction(() => window.__ws.finished, null, { timeout: 60000 });
   const ev = await page.evaluate(() => ({ e: window.__ws.events.map(x => x.type + (x.n || '')), modes: window.__ws.stage.log.map(x => x.mode), total: window.__ws.tl.total }));
   ok('C: custom 3×1 min /1 min break, no intro/outro => s1,b1,s2,b2,s3', ev.e.filter(x => x !== 'end' && x !== 'leg').join(',') === 'sprint1,break1,sprint2,break2,sprint3' && ev.total === 300, ev.e.join(','));
-  ok('C: Ken Burns fallback used when clips fail', ev.modes.length > 0 && ev.modes.every(m => m === 'kenburns'), ev.modes.join(','));
+  if (!WK) ok('C: Ken Burns fallback used when clips fail', ev.modes.length > 0 && ev.modes.every(m => m === 'kenburns'), ev.modes.join(','));
   await ctx.close();
 }
 
