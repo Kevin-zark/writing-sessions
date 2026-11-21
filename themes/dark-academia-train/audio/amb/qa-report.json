@@ -1,0 +1,128 @@
+{
+ "train": {
+  "src": "133099-train-steam-interior.mp3",
+  "seconds": 60.0,
+  "lufs": -24.4,
+  "true_peak_dbfs": -5.3,
+  "seam_level_jump_db": -3.4,
+  "clipped_samples": 0,
+  "lowpass": 0
+ },
+ "train_soft": {
+  "src": "133099-train-steam-interior.mp3",
+  "seconds": 60.0,
+  "lufs": -27.4,
+  "true_peak_dbfs": -9.0,
+  "seam_level_jump_db": 1.31,
+  "clipped_samples": 0,
+  "lowpass": 1400
+ },
+ "city": {
+  "src": "427841-city-quiet-night.mp3",
+  "seconds": 60.0,
+  "lufs": -26.4,
+  "true_peak_dbfs": -11.2,
+  "seam_level_jump_db": 0.26,
+  "clipped_samples": 0,
+  "lowpass": 1600
+ },
+ "bells": {
+  "src": "413157-bells-french-distant.mp3",
+  "seconds": 50.0,
+  "lufs": -28.6,
+  "true_peak_dbfs": -3.4,
+  "seam_level_jump_db": -4.16,
+  "clipped_samples": 0,
+  "lowpass": 2400
+ },
+ "rain_glass": {
+  "src": "235827-rain-roof-window.mp3",
+  "seconds": 60.0,
+  "lufs": -27.3,
+  "true_peak_dbfs": -3.3,
+  "seam_level_jump_db": -0.17,
+  "clipped_samples": 0,
+  "lowpass": 0
+ },
+ "lake_lap": {
+  "src": "614299-lake-gentle-waves.mp3",
+  "seconds": 45.0,
+  "lufs": -31.4,
+  "true_peak_dbfs": -3.5,
+  "seam_level_jump_db": 3.23,
+  "clipped_samples": 0,
+  "lowpass": 1100
+ },
+ "forest_wind": {
+  "src": "352436-forest-winter-light-wind.mp3",
+  "seconds": 45.0,
+  "lufs": -27.4,
+  "true_peak_dbfs": -12.7,
+  "seam_level_jump_db": 0.37,
+  "clipped_samples": 0,
+  "lowpass": 3000
+ },
+ "stream": {
+  "src": "318064-river-lapping.mp3",
+  "seconds": 45.0,
+  "lufs": -28.3,
+  "true_peak_dbfs": -3.6,
+  "seam_level_jump_db": -6.43,
+  "clipped_samples": 0,
+  "lowpass": 1400
+ },
+ "wind_high": {
+  "src": "117513-winter-wind.mp3",
+  "seconds": 60.0,
+  "lufs": -26.4,
+  "true_peak_dbfs": -10.9,
+  "seam_level_jump_db": -0.35,
+  "clipped_samples": 0,
+  "lowpass": 2500
+ },
+ "blizzard": {
+  "src": "117513-winter-wind.mp3",
+  "seconds": 50.0,
+  "lufs": -23.4,
+  "true_peak_dbfs": -7.2,
+  "seam_level_jump_db": 0.51,
+  "clipped_samples": 0,
+  "lowpass": 0
+ },
+ "window_whistle": {
+  "src": "69512-wind-whistling-window.mp3",
+  "seconds": 50.0,
+  "lufs": -27.3,
+  "true_peak_dbfs": -8.3,
+  "seam_level_jump_db": 2.68,
+  "clipped_samples": 0,
+  "lowpass": 0
+ },
+ "tunnel": {
+  "src": "475500-train-tunnel.mp3",
+  "seconds": 30.0,
+  "lufs": -23.3,
+  "true_peak_dbfs": -8.4,
+  "seam_level_jump_db": 1.09,
+  "clipped_samples": 0,
+  "lowpass": 3500
+ },
+ "station_walla": {
+  "src": "256626-euston-station.mp3",
+  "seconds": 55.0,
+  "lufs": -25.4,
+  "true_peak_dbfs": -5.4,
+  "seam_level_jump_db": 0.76,
+  "clipped_samples": 0,
+  "lowpass": 900
+ },
+ "luggage": {
+  "src": "275173-luggage-rolling.mp3",
+  "seconds": 50.0,
+  "lufs": -29.3,
+  "true_peak_dbfs": -7.7,
+  "seam_level_jump_db": -1.31,
+  "clipped_samples": 0,
+  "lowpass": 1200
+ }
+}

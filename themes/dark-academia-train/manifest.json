@@ -1,26 +1,1100 @@
 {
-  "id": "dark-academia-train",
-  "title": "Dark Academia Train to a Snowy Village",
-  "description": "A candlelit compartment, snow-laden pines sliding past the window, and a lamplit village waiting at the end of the line.",
-  "cover": "scenes/train-window.jpg",
-  "accent": "#d9b26f",
-  "sceneMode": "journey",
-  "scenes": [
-    { "id": "window", "title": "Snowy scenery", "clip": "scenes/train-window.mp4", "still": "scenes/train-window.jpg" },
-    { "id": "compartment", "title": "The compartment", "clip": "scenes/train-compartment.mp4", "still": "scenes/train-compartment.jpg" },
-    { "id": "village", "title": "Arriving at the village", "clip": "scenes/village-arrival.mp4", "still": "scenes/village-arrival.jpg" }
-  ],
-  "music": [
-    { "title": "Snowbound Compartment", "src": "audio/snowbound-compartment-a.mp3", "artist": "fullslopstudios (Suno)" },
-    { "title": "Snowbound Compartment (II)", "src": "audio/snowbound-compartment-b.mp3", "artist": "fullslopstudios (Suno)" },
-    { "title": "Letters by Lamplight", "src": "audio/letters-by-lamplight-a.mp3", "artist": "fullslopstudios (Suno)" },
-    { "title": "Letters by Lamplight (II)", "src": "audio/letters-by-lamplight-b.mp3", "artist": "fullslopstudios (Suno)" },
-    { "title": "Arrival at Hollowmere", "src": "audio/arrival-at-hollowmere-a.mp3", "artist": "fullslopstudios (Suno)" },
-    { "title": "Arrival at Hollowmere (II)", "src": "audio/arrival-at-hollowmere-b.mp3", "artist": "fullslopstudios (Suno)" }
-  ],
-  "ambience": { "title": "Train & rain (procedural placeholder)", "src": "audio/ambience-train-rain.mp3" },
-  "intro": { "lines": ["Welcome, Writers...", "Find your seat. Open your story.", "The journey begins."] },
-  "breakText": ["Rest your eyes. Stretch. Sip something warm.", "Let the ideas settle.", "Breathe. The story will wait."],
-  "breakEndText": "The next sprint begins soon...",
-  "outro": { "lines": ["Beautiful work, my friend!", "Until the next journey."] }
+ "schema": 2,
+ "id": "dark-academia-train",
+ "title": "Dark Academia Train to Hollowmere",
+ "description": "A candlelit compartment on a two-hour journey: a misty city, a rain-grey lake, a snow-hushed forest and the high mountain passes, arriving at Hollowmere University.",
+ "cover": "stills/c2.jpg",
+ "accent": "#d9b26f",
+ "status": "published",
+ "owner": "kevin",
+ "origin": {
+  "type": "owner",
+  "requestId": null,
+  "requestedBy": null
+ },
+ "createdAt": "2026-11-21",
+ "version": 2,
+ "designedFor": {
+  "sprintMin": 25,
+  "breakMin": 5,
+  "sprints": 4,
+  "intro": true,
+  "outro": true
+ },
+ "frame": {
+  "objectPosition": "58% 45%"
+ },
+ "style": {
+  "camera": "Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame",
+  "interior": "Dark mahogany panels, bottle-green velvet curtains tied back at both edges, brass sconce upper left, leather book + teacup on the ledge",
+  "palette": "Warm amber interior vs cool desaturated exterior",
+  "lens": "35mm, light film grain, painterly cinematic realism",
+  "motion": "Exterior only; bridges slide scenery right-to-left",
+  "reference": "stills/master reference kept in the theme workspace"
+ },
+ "ambienceLib": {
+  "train": {
+   "src": "audio/amb/train.mp3",
+   "gain": 1.0,
+   "title": "Carriage rumble + wheel clatter (moving legs)",
+   "sourceId": "133099",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -24.4,
+    "true_peak_dbfs": -5.3,
+    "seam_level_jump_db": -3.4,
+    "clipped_samples": 0
+   }
+  },
+  "train_soft": {
+   "src": "audio/amb/train_soft.mp3",
+   "gain": 1.0,
+   "title": "Same carriage, low-passed: wheels muffled by snow",
+   "sourceId": "133099",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -27.4,
+    "true_peak_dbfs": -9.0,
+    "seam_level_jump_db": 1.31,
+    "clipped_samples": 0
+   }
+  },
+  "city": {
+   "src": "audio/amb/city.mp3",
+   "gain": 1.0,
+   "title": "Distant city hum through glass",
+   "sourceId": "427841",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -26.4,
+    "true_peak_dbfs": -11.2,
+    "seam_level_jump_db": 0.26,
+    "clipped_samples": 0
+   }
+  },
+  "bells": {
+   "src": "audio/amb/bells.mp3",
+   "gain": 1.0,
+   "title": "Distant church bells",
+   "sourceId": "413157",
+   "qa": {
+    "seconds": 50.0,
+    "lufs": -28.6,
+    "true_peak_dbfs": -3.4,
+    "seam_level_jump_db": -4.16,
+    "clipped_samples": 0
+   }
+  },
+  "rain_glass": {
+   "src": "audio/amb/rain_glass.mp3",
+   "gain": 1.0,
+   "title": "Light rain on the window",
+   "sourceId": "235827",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -27.3,
+    "true_peak_dbfs": -3.3,
+    "seam_level_jump_db": -0.17,
+    "clipped_samples": 0
+   }
+  },
+  "lake_lap": {
+   "src": "audio/amb/lake_lap.mp3",
+   "gain": 1.4,
+   "title": "Lake water lapping, heard through glass",
+   "sourceId": "614299",
+   "qa": {
+    "seconds": 45.0,
+    "lufs": -31.4,
+    "true_peak_dbfs": -3.5,
+    "seam_level_jump_db": 3.23,
+    "clipped_samples": 0
+   }
+  },
+  "forest_wind": {
+   "src": "audio/amb/forest_wind.mp3",
+   "gain": 1.0,
+   "title": "Soft wind in winter pines",
+   "sourceId": "352436",
+   "qa": {
+    "seconds": 45.0,
+    "lufs": -27.4,
+    "true_peak_dbfs": -12.7,
+    "seam_level_jump_db": 0.37,
+    "clipped_samples": 0
+   }
+  },
+  "stream": {
+   "src": "audio/amb/stream.mp3",
+   "gain": 1.0,
+   "title": "Running water under ice / below the bridge",
+   "sourceId": "318064",
+   "qa": {
+    "seconds": 45.0,
+    "lufs": -28.3,
+    "true_peak_dbfs": -3.6,
+    "seam_level_jump_db": -6.43,
+    "clipped_samples": 0
+   }
+  },
+  "wind_high": {
+   "src": "audio/amb/wind_high.mp3",
+   "gain": 1.0,
+   "title": "Mountain wind",
+   "sourceId": "117513",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -26.4,
+    "true_peak_dbfs": -10.9,
+    "seam_level_jump_db": -0.35,
+    "clipped_samples": 0
+   }
+  },
+  "blizzard": {
+   "src": "audio/amb/blizzard.mp3",
+   "gain": 1.0,
+   "title": "Howling blizzard gusts",
+   "sourceId": "117513",
+   "qa": {
+    "seconds": 50.0,
+    "lufs": -23.4,
+    "true_peak_dbfs": -7.2,
+    "seam_level_jump_db": 0.51,
+    "clipped_samples": 0
+   }
+  },
+  "window_whistle": {
+   "src": "audio/amb/window_whistle.mp3",
+   "gain": 1.0,
+   "title": "Wind whistling through the window frame",
+   "sourceId": "69512",
+   "qa": {
+    "seconds": 50.0,
+    "lufs": -27.3,
+    "true_peak_dbfs": -8.3,
+    "seam_level_jump_db": 2.68,
+    "clipped_samples": 0
+   }
+  },
+  "tunnel": {
+   "src": "audio/amb/tunnel.mp3",
+   "gain": 1.0,
+   "title": "Enclosed tunnel roar (pressure change)",
+   "sourceId": "475500",
+   "qa": {
+    "seconds": 30.0,
+    "lufs": -23.3,
+    "true_peak_dbfs": -8.4,
+    "seam_level_jump_db": 1.09,
+    "clipped_samples": 0
+   }
+  },
+  "station_walla": {
+   "src": "audio/amb/station_walla.mp3",
+   "gain": 1.0,
+   "title": "Station hall voices + footsteps, muffled through glass",
+   "sourceId": "256626",
+   "qa": {
+    "seconds": 55.0,
+    "lufs": -25.4,
+    "true_peak_dbfs": -5.4,
+    "seam_level_jump_db": 0.76,
+    "clipped_samples": 0
+   }
+  },
+  "luggage": {
+   "src": "audio/amb/luggage.mp3",
+   "gain": 1.0,
+   "title": "Luggage wheels and handling, muffled",
+   "sourceId": "275173",
+   "qa": {
+    "seconds": 50.0,
+    "lufs": -29.3,
+    "true_peak_dbfs": -7.7,
+    "seam_level_jump_db": -1.31,
+    "clipped_samples": 0
+   }
+  }
+ },
+ "stations": [
+  {
+   "id": "s0",
+   "title": "Ravensgate Terminus",
+   "loop": "clips/loop-s0.mp4",
+   "loopDur": 10.0,
+   "still": "stills/s0.jpg",
+   "ambience": [
+    {
+     "layer": "station_walla",
+     "gain": 0.8
+    },
+    {
+     "layer": "luggage",
+     "gain": 0.6
+    },
+    {
+     "layer": "city",
+     "gain": 0.3
+    }
+   ]
+  },
+  {
+   "id": "s1",
+   "title": "Greyfriars Road",
+   "loop": "clips/loop-s1.mp4",
+   "loopDur": 10.0,
+   "still": "stills/s1.jpg",
+   "ambience": [
+    {
+     "layer": "station_walla",
+     "gain": 0.55
+    },
+    {
+     "layer": "luggage",
+     "gain": 0.5
+    },
+    {
+     "layer": "city",
+     "gain": 0.35
+    }
+   ]
+  },
+  {
+   "id": "s2",
+   "title": "Wrenmere Halt",
+   "loop": "clips/loop-s2.mp4",
+   "loopDur": 10.0,
+   "still": "stills/s2.jpg",
+   "ambience": [
+    {
+     "layer": "station_walla",
+     "gain": 0.45
+    },
+    {
+     "layer": "luggage",
+     "gain": 0.45
+    },
+    {
+     "layer": "rain_glass",
+     "gain": 0.8
+    }
+   ]
+  },
+  {
+   "id": "s3",
+   "title": "Pinehollow",
+   "loop": "clips/loop-s3.mp4",
+   "loopDur": 10.0,
+   "still": "stills/s3.jpg",
+   "ambience": [
+    {
+     "layer": "station_walla",
+     "gain": 0.45
+    },
+    {
+     "layer": "luggage",
+     "gain": 0.5
+    },
+    {
+     "layer": "forest_wind",
+     "gain": 0.5
+    }
+   ]
+  },
+  {
+   "id": "s4",
+   "title": "Hollowmere University",
+   "loop": "clips/loop-s4.mp4",
+   "loopDur": 10.0,
+   "still": "stills/s4.jpg",
+   "ambience": [
+    {
+     "layer": "station_walla",
+     "gain": 0.7
+    },
+    {
+     "layer": "luggage",
+     "gain": 0.5
+    },
+    {
+     "layer": "bells",
+     "gain": 0.35
+    },
+    {
+     "layer": "forest_wind",
+     "gain": 0.3
+    }
+   ]
+  }
+ ],
+ "legs": [
+  {
+   "id": "city",
+   "title": "The misty city",
+   "from": "s0",
+   "to": "s1",
+   "ambience": [
+    {
+     "layer": "train",
+     "gain": 0.6
+    },
+    {
+     "layer": "city",
+     "gain": 0.55
+    }
+   ],
+   "music": [
+    {
+     "title": "Letters by Lamplight",
+     "src": "audio/letters-by-lamplight-a.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "Letters by Lamplight (II)",
+     "src": "audio/letters-by-lamplight-b.mp3",
+     "artist": "fullslopstudios (Suno)"
+    }
+   ],
+   "depart": {
+    "clip": "clips/br-s0-c1.mp4",
+    "dur": 8.042
+   },
+   "arrive": {
+    "clip": "clips/br-c6-s1.mp4",
+    "dur": 8.042
+   },
+   "views": [
+    {
+     "id": "c1",
+     "title": "Rooftops in the fog",
+     "loop": "clips/loop-c1.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c1.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-c1-c2.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "c2",
+     "title": "The cathedral",
+     "loop": "clips/loop-c2.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c2.jpg",
+     "ambience": [
+      {
+       "layer": "bells",
+       "gain": 0.6
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-c2-c3.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "c3",
+     "title": "The iron bridge",
+     "loop": "clips/loop-c3.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c3.jpg",
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.7
+      },
+      {
+       "layer": "stream",
+       "gain": 0.2
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-c3-c4.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "c4",
+     "title": "Terraced lanes",
+     "loop": "clips/loop-c4.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c4.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-c4-c5.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "c5",
+     "title": "The old clock mill",
+     "loop": "clips/loop-c5.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c5.jpg",
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.4
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-c5-c6.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "c6",
+     "title": "The outskirts",
+     "loop": "clips/loop-c6.mp4",
+     "loopDur": 10.0,
+     "still": "stills/c6.jpg",
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "lake",
+   "title": "Wrenmere Lake in the rain",
+   "from": "s1",
+   "to": "s2",
+   "ambience": [
+    {
+     "layer": "train",
+     "gain": 0.55
+    },
+    {
+     "layer": "rain_glass",
+     "gain": 0.7
+    }
+   ],
+   "music": [
+    {
+     "title": "Rain over Wrenmere Lake",
+     "src": "audio/rain-over-wrenmere-lake-a.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "Rain over Wrenmere Lake (II)",
+     "src": "audio/rain-over-wrenmere-lake-b.mp3",
+     "artist": "fullslopstudios (Suno)"
+    }
+   ],
+   "depart": {
+    "clip": "clips/br-s1-l1.mp4",
+    "dur": 8.042
+   },
+   "arrive": {
+    "clip": "clips/br-l6-s2.mp4",
+    "dur": 8.042
+   },
+   "views": [
+    {
+     "id": "l1",
+     "title": "Birches by the water",
+     "loop": "clips/loop-l1.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l1.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-l1-l2.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "l2",
+     "title": "The open lake",
+     "loop": "clips/loop-l2.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l2.jpg",
+     "ambience": [
+      {
+       "layer": "lake_lap",
+       "gain": 0.35
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-l2-l3.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "l3",
+     "title": "The old jetty",
+     "loop": "clips/loop-l3.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l3.jpg",
+     "ambience": [
+      {
+       "layer": "lake_lap",
+       "gain": 0.7
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-l3-l4.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "l4",
+     "title": "The shore chapel",
+     "loop": "clips/loop-l4.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l4.jpg",
+     "ambience": [
+      {
+       "layer": "lake_lap",
+       "gain": 0.4
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-l4-l5.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "l5",
+     "title": "The causeway",
+     "loop": "clips/loop-l5.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l5.jpg",
+     "ambience": [
+      {
+       "layer": "lake_lap",
+       "gain": 0.8
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-l5-l6.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "l6",
+     "title": "Sleet at the far shore",
+     "loop": "clips/loop-l6.mp4",
+     "loopDur": 10.0,
+     "still": "stills/l6.jpg",
+     "ambience": [
+      {
+       "layer": "rain_glass",
+       "gain": 0.45
+      },
+      {
+       "layer": "forest_wind",
+       "gain": 0.45
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "forest",
+   "title": "The snow-hushed forest",
+   "from": "s2",
+   "to": "s3",
+   "ambience": [
+    {
+     "layer": "train_soft",
+     "gain": 0.75
+    },
+    {
+     "layer": "forest_wind",
+     "gain": 0.5
+    }
+   ],
+   "music": [
+    {
+     "title": "Snowbound Compartment",
+     "src": "audio/snowbound-compartment-a.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "Snowbound Compartment (II)",
+     "src": "audio/snowbound-compartment-b.mp3",
+     "artist": "fullslopstudios (Suno)"
+    }
+   ],
+   "depart": {
+    "clip": "clips/br-s2-f1.mp4",
+    "dur": 8.042
+   },
+   "arrive": {
+    "clip": "clips/br-f6-s3.mp4",
+    "dur": 8.042
+   },
+   "views": [
+    {
+     "id": "f1",
+     "title": "Snow-laden pines",
+     "loop": "clips/loop-f1.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f1.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-f1-f2.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "f2",
+     "title": "Light through the firs",
+     "loop": "clips/loop-f2.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f2.jpg",
+     "ambience": [
+      {
+       "layer": "forest_wind",
+       "gain": 0.35
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-f2-f3.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "f3",
+     "title": "The frozen stream",
+     "loop": "clips/loop-f3.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f3.jpg",
+     "ambience": [
+      {
+       "layer": "stream",
+       "gain": 0.7
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-f3-f4.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "f4",
+     "title": "The deer clearing",
+     "loop": "clips/loop-f4.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f4.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-f4-f5.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "f5",
+     "title": "The woodcutter's cabin",
+     "loop": "clips/loop-f5.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f5.jpg",
+     "ambience": [],
+     "bridge": {
+      "clip": "clips/br-f5-f6.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "f6",
+     "title": "The mountains rise",
+     "loop": "clips/loop-f6.mp4",
+     "loopDur": 10.0,
+     "still": "stills/f6.jpg",
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.35
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mountains",
+   "title": "The high passes",
+   "from": "s3",
+   "to": "s4",
+   "ambience": [
+    {
+     "layer": "train",
+     "gain": 0.55
+    },
+    {
+     "layer": "wind_high",
+     "gain": 0.6
+    }
+   ],
+   "music": [
+    {
+     "title": "The High Pass",
+     "src": "audio/the-high-pass-a.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "The High Pass (II)",
+     "src": "audio/the-high-pass-b.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "Arrival at Hollowmere",
+     "src": "audio/arrival-at-hollowmere-a.mp3",
+     "artist": "fullslopstudios (Suno)"
+    },
+    {
+     "title": "Arrival at Hollowmere (II)",
+     "src": "audio/arrival-at-hollowmere-b.mp3",
+     "artist": "fullslopstudios (Suno)"
+    }
+   ],
+   "depart": {
+    "clip": "clips/br-s3-m1.mp4",
+    "dur": 8.042
+   },
+   "arrive": {
+    "clip": "clips/br-m6-s4.mp4",
+    "dur": 8.042
+   },
+   "views": [
+    {
+     "id": "m1",
+     "title": "The climb",
+     "loop": "clips/loop-m1.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m1.jpg",
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.8
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-m1-m2.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "m2",
+     "title": "The viaduct",
+     "loop": "clips/loop-m2.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m2.jpg",
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.9
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-m2-m3.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "m3",
+     "title": "The tunnel",
+     "loop": "clips/loop-m3.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m3.jpg",
+     "ambience": [
+      {
+       "layer": "tunnel",
+       "gain": 0.9
+      },
+      {
+       "layer": "wind_high",
+       "gain": 0
+      },
+      {
+       "layer": "train",
+       "gain": 0.3
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-m3-m4.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "m4",
+     "title": "Blizzard on the pass",
+     "loop": "clips/loop-m4.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m4.jpg",
+     "ambience": [
+      {
+       "layer": "blizzard",
+       "gain": 0.9
+      },
+      {
+       "layer": "window_whistle",
+       "gain": 0.7
+      },
+      {
+       "layer": "wind_high",
+       "gain": 0.3
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-m4-m5.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "m5",
+     "title": "The frozen falls",
+     "loop": "clips/loop-m5.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m5.jpg",
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.35
+      }
+     ],
+     "bridge": {
+      "clip": "clips/br-m5-m6.mp4",
+      "dur": 8.042
+     }
+    },
+    {
+     "id": "m6",
+     "title": "Hollowmere in the valley",
+     "loop": "clips/loop-m6.mp4",
+     "loopDur": 10.0,
+     "still": "stills/m6.jpg",
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.3
+      },
+      {
+       "layer": "bells",
+       "gain": 0.2
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "credits": [
+  {
+   "kind": "music",
+   "title": "Letters by Lamplight",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Letters by Lamplight (II)",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Rain over Wrenmere Lake",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Rain over Wrenmere Lake (II)",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Snowbound Compartment",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Snowbound Compartment (II)",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "The High Pass",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "The High Pass (II)",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Arrival at Hollowmere",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "music",
+   "title": "Arrival at Hollowmere (II)",
+   "author": "fullslopstudios (Suno)",
+   "license": "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"
+  },
+  {
+   "kind": "ambience",
+   "title": "Steam Train Interior",
+   "author": "allh",
+   "url": "https://freesound.org/s/133099/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "train",
+    "train_soft"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Ambience City Quiet Night Air Tone",
+   "author": "leonelmail",
+   "url": "https://freesound.org/s/427841/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "city"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Bells french distant",
+   "author": "lazymonk",
+   "url": "https://freesound.org/s/413157/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "bells"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Soft rain on roof window",
+   "author": "Metadex",
+   "url": "https://freesound.org/s/235827/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "rain_glass"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Gentle waves on a lake",
+   "author": "TheFlyFishingFilmmaker",
+   "url": "https://freesound.org/s/614299/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "lake_lap"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Forest, Winter, Light Wind",
+   "author": "Kinoton",
+   "url": "https://freesound.org/s/352436/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "forest_wind"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Water_Lapping_River",
+   "author": "ceich93",
+   "url": "https://freesound.org/s/318064/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "stream"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "winter wind 01c",
+   "author": "klangfabrik",
+   "url": "https://freesound.org/s/117513/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "blizzard",
+    "wind_high"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Winter wind whistling through window",
+   "author": "audible-edge",
+   "url": "https://freesound.org/s/69512/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "window_whistle"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Train_tunnel_1",
+   "author": "o_ciz",
+   "url": "https://freesound.org/s/475500/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "tunnel"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "EustonStation_ST",
+   "author": "habbis92",
+   "url": "https://freesound.org/s/256626/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "station_walla"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Luggage_rolling4",
+   "author": "schaft",
+   "url": "https://freesound.org/s/275173/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "luggage"
+   ]
+  }
+ ],
+ "intro": {
+  "lines": [
+   "Welcome, Writers...",
+   "Find your seat. Open your story.",
+   "The train to Hollowmere departs soon."
+  ]
+ },
+ "breakText": [
+  "The train pauses at the platform. Stretch. Sip something warm.",
+  "Let the ideas settle while passengers come and go.",
+  "Breathe. The story will wait."
+ ],
+ "breakEndText": "All aboard — the next sprint begins soon...",
+ "outro": {
+  "lines": [
+   "Hollowmere, at last.",
+   "Beautiful work, my friend!",
+   "Until the next journey."
+  ]
+ }
 }

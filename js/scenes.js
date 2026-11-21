@@ -86,19 +86,27 @@ export class JourneyStage {
   update(want, pos) {
     if (want < 0) return;
     if (this.cur < 0) return this._hard(want, { instant: true, pos });
+    const items = this.plan.items, cur = items[this.cur];
+    if (this.speed === 1 && !document.hidden) {
+      // stage may run a little ahead (a bridge finished early) — let the clock catch up
+      if (want === this.cur - 1 && items[this.cur].start - pos < 20) return;
+      // start a chained bridge half a loop early, so on average it lands on time
+      const nx = items[this.cur + 1];
+      if (want === this.cur && cur.kind === 'loop' && nx?.kind === 'bridge' && !cur.xfadeNext && pos >= nx.start - (cur.loopDur || 10) / 2) want = this.cur + 1;
+    }
     if (want === this.cur) { this._maybePreload(pos); return; }
-    const next = this.cur + 1, cur = this.plan.items[this.cur], it = this.plan.items[want];
-    const L = this.layers[this.top];
-    const chained = want === next && this.speed === 1 && L.mode === 'video' && !cur.xfadeNext && it.kind !== 'xfade' && !document.hidden;
+    const it = items[want], L = this.layers[this.top];
+    const chained = want === this.cur + 1 && this.speed === 1 && L.mode === 'video' && !cur.xfadeNext && it.kind !== 'xfade' && !document.hidden;
     if (!chained) return this._hard(want, { pos });
     if (this.pending === want) {
-      // safety: if 'ended' never arrives, force the swap
-      if (pos > it.start + (cur.loopDur || 10) + 6) this._hard(want, { pos });
+      // safety: if 'ended' never arrives (stall), force the swap
+      if (pos > it.start + (cur.kind === 'bridge' ? 12 : (cur.loopDur || 10) + 6)) this._hard(want, { pos });
       return;
     }
     this.pending = want;
     const v = L.video;
-    if (cur.kind === 'loop' && !v.ended) { v.loop = false; v.onended = () => this._swap(want); }
+    if (cur.kind === 'bridge') return;            // its own onended swaps to the next loop
+    if (!v.ended) { v.loop = false; v.onended = () => this._swap(want); }
     else this._swap(want);
   }
 
@@ -132,7 +140,6 @@ export class JourneyStage {
     H.mode = 'video'; H.video.classList.add('on'); H.img.classList.remove('kb');
     H.video.currentTime = 0;
     const p = H.video.play(); if (p?.catch) p.catch(() => {});
-    if (it.kind === 'bridge') H.video.onended = () => { /* next update() call swaps on time */ H.video.pause(); };
     H.el.style.transition = 'none'; H.el.style.opacity = '1'; H.el.style.zIndex = '2'; old.el.style.zIndex = '1';
     this.top = 1 - this.top; this.cur = n;
     this.log.push({ id: it.id, kind: it.kind, mode: 'chain', t: Date.now() });

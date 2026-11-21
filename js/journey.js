@@ -3,6 +3,12 @@
 // Every visual item is either a seamless `loop` (same first/last frame) or a one-shot `bridge`
 // whose first frame is the previous loop's frame and last frame is the next loop's frame.
 
+/** Leg base layers + per-clip layers; a clip entry with the same layer name overrides the base gain (gain 0 removes it). */
+export function mergeLayers(base = [], extra = []) {
+  const m = new Map(); [...(base || []), ...(extra || [])].forEach(l => m.set(l.layer, l));
+  return [...m.values()].filter(l => (l.gain ?? 1) > 0);
+}
+
 /** Flatten a v2 manifest into the ordered chain of visual nodes + bridges. */
 export function chainOf(m) {
   const st = m.stations || [], legs = m.legs || [];
@@ -16,7 +22,7 @@ export function chainOf(m) {
       arrive: leg.arrive ? { clip: leg.arrive.clip, dur: leg.arrive.dur || 8 } : null,
       views: (leg.views || []).map((v, vi) => ({
         ...node(v, { kind: 'view', leg: li, view: vi }),
-        ambience: [...base, ...(v.ambience || [])].filter((l, i, a) => a.findIndex(x => x.layer === l.layer) === i || !l.layer),
+        ambience: mergeLayers(base, v.ambience),
         next: v.bridge ? { clip: v.bridge.clip, dur: v.bridge.dur || 8 } : null,
       })),
     });
