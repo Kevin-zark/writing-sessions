@@ -124,7 +124,7 @@ export class Player {
       ]);
       this.loaded = { music: pool.length, amb: amb > 0, layers: amb, errors: a.loadErrors || [] };
       a.setVolumes({ music: this.s.musicVol, amb: this.s.ambVol, chime: this.s.chimeVol });
-      a.tracks = pool; this.curLeg = l0;
+      a.tracks = pool; a.songIndex = 0; this.curLeg = l0;
       a.startLayers(); a.keepAlive = true;
       this._nudge = () => { if (!this.paused && !this.finished) { this.audio.resume(); this.stage.resume(); } };
       this.root.addEventListener('pointerdown', this._nudge);
@@ -202,7 +202,8 @@ export class Player {
     const pool = await this.audio.loadMusicPool(leg.id, leg.music, this.base);
     if (this.curLeg !== lg) return;
     const seg = this.tl.segs[this.curSeg];
-    this.audio.setMusicPool(pool, { hard: !seg || seg.type === 'break' || seg.type === 'intro' });
+    // New leg starts at song 0. Music is already down at a post-break sprint start, so stop the previous source.
+    this.audio.setMusicPool(pool, { hard: true });
     this.audio.prunePools([leg.id, this.m.legs[lg + 1]?.id].filter(Boolean));
     this.events.push({ type: 'leg', leg: leg.id, pos: Math.round(this.clock.pos()), at: Date.now() });
   }
@@ -221,6 +222,12 @@ export class Player {
     this.root.dataset.seg = seg.type;
     this._textKey = null;
     if (this.mediaOk) this._mediaMeta();
+    // After a break, advance the song if we are still on the same leg (a second sprint in that leg).
+    // If the leg is also changing, _enterLeg starts at song 0 of the new list — do not increment the old list.
+    if (seg.type === 'sprint' && (seg.n || 0) > 1) {
+      const lg = legAt(this.plan, seg.start);
+      if (lg === this.curLeg) this.audio.advanceSong();
+    }
   }
 
   _text(seg, loc) {

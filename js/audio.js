@@ -1,4 +1,4 @@
-// Web Audio session soundtrack: synthesized chimes, music chain with crossfades,
+// Web Audio session soundtrack: synthesized chimes, music chain with dip-to-quiet fades,
 // looping ambience, all scheduled on the audio clock (so chimes stay on time even
 // if the page is throttled with the screen locked). iOS ignores <audio>.volume,
 // which is why fades are done with GainNodes.
@@ -7,8 +7,13 @@ const AC = window.AudioContext || window.webkitAudioContext;
 export class SessionAudio {
   constructor() {
     this.ctx = null; this.vol = { music: 0.8, amb: 0.7, chime: 0.8 };
-    this.tracks = []; this.ambBuf = null; this.musicEnd = 0; this.lastTrack = -1;
-    this.chimeNodes = []; this.musicSrcs = []; this.musicQueue = []; this.anchor = null; this.speed = 1; this.xf = 3;
+    this.tracks = []; this.ambBuf = null; this.musicEnd = 0; this.songIndex = 0;
+    this.chimeNodes = []; this.musicSrcs = []; this.musicQueue = []; this.anchor = null; this.speed = 1;
+    // listen9 strong-a: outgoing fades out over 8 s to silence; incoming starts in the last 1.5 s and reaches full over 6 s
+    this.fadeOut = 8; this.fadeIn = 6; this.fadeOverlap = 1.5;
+    // sprint→break: music is down when the fall chime hits; break→sprint uses the 6 s fade-in
+    this.breakFadeOut = 8; this.sprintFadeIn = 6;
+    this.musicLookahead = 150;
     this.chimeLog = []; // for tests / debugging: {sessionT, kind}
   }
   /** Must be called synchronously inside a user tap. */
@@ -87,17 +92,62 @@ export class SessionAudio {
   }
   /** Free pools not in `keep` (iOS memory). */
   prunePools(keep) { for (const k of Object.keys(this.pools || {})) if (!keep.includes(k)) delete this.pools[k]; }
-  /** Switch the track pool. Not-yet-started queued tracks are cancelled; `hard` also stops the playing one. */
+  /** Switch the track pool. A new pool starts at song 0 (first of that leg). `hard` also stops the playing source. */
   setMusicPool(pool, { hard = false } = {}) {
     if (!pool || pool === this.tracks) return;
-    const c = this.ctx; this.tracks = pool; this.lastTrack = -1;
+    const c = this.ctx; this.tracks = pool; this.songIndex = 0;
     if (!c) return;
+    this._stopQueue(hard);
+    this.ensureMusic();
+  }
+  /** Advance to the next song in the current leg's list. Does not wrap; stays on the last song if there is no next. */
+  advanceSong() {
+    if (!this.tracks.length) return;
+    if (this.songIndex < this.tracks.length - 1) this.songIndex++;
+    this._stopQueue(true);
+    this.ensureMusic();
+  }
+  _stopQueue(hard) {
+    const c = this.ctx; if (!c) return;
     const now = c.currentTime;
     this.musicQueue.forEach((q) => { if (q.start > now || hard) { try { q.src.stop(); } catch (e) {} } });
     this.musicQueue = this.musicQueue.filter(q => !(q.start > now || hard));
     this.musicSrcs = this.musicQueue.map(q => q.src);
-    this.musicEnd = this.musicQueue.length ? Math.max(...this.musicQueue.map(q => q.end - this.xf)) : 0;
-    this.ensureMusic();
+    this.musicEnd = this.musicQueue.length ? Math.max(...this.musicQueue.map(q => q.end - this.fadeOverlap)) : 0;
+  }
+  /** Cosine fade: out is cos(π/2 · x), in is sin(π/2 · x). */
+  _cosOut(n = 512) {
+    const c = new Float32Array(n);
+    for (let i = 0; i < n; i++) c[i] = Math.cos(0.5 * Math.PI * i / (n - 1));
+    return c;
+  }
+  _cosIn(n = 512) {
+    const c = new Float32Array(n);
+    for (let i = 0; i < n; i++) c[i] = Math.sin(0.5 * Math.PI * i / (n - 1));
+    return c;
+  }
+  /** Interpolate `from`→`to` with the same cosine used for song fades (from·cos + to·sin). */
+  _cosLerp(from, to, n = 512) {
+    const c = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = i / (n - 1);
+      c[i] = from * Math.cos(0.5 * Math.PI * x) + to * Math.sin(0.5 * Math.PI * x);
+    }
+    return c;
+  }
+  /** Schedule a cosine ramp on a GainParam, including the case where we are already mid-fade. */
+  _ramp(param, from, to, tStart, tEnd, now) {
+    if (!(tEnd > tStart)) { param.setValueAtTime(to, now); return; }
+    if (tEnd <= now) { param.setValueAtTime(to, now); return; }
+    if (tStart >= now) {
+      param.setValueAtTime(from, tStart);
+      param.setValueCurveAtTime(this._cosLerp(from, to), tStart, tEnd - tStart);
+      return;
+    }
+    const dur = tEnd - tStart, done = (now - tStart) / dur, n = 512;
+    const full = this._cosLerp(from, to, n);
+    const i0 = Math.min(n - 2, Math.max(0, Math.floor(done * (n - 1))));
+    param.setValueCurveAtTime(full.slice(i0), now, tEnd - now);
   }
   /** Decode the theme's ambience library. Layers in `first` are awaited (needed right away); the rest decode
    *  one at a time in the background, so iOS never decodes 14 files at once. Each entry loops seamlessly. */
@@ -182,32 +232,35 @@ export class SessionAudio {
     };
     const mv = this.vol.music, av = this.vol.amb;
     const cur = segs.findIndex(s => pos >= s.start && pos < s.end);
-    const fade = (seg) => Math.max(0.5, Math.min(5, (seg.dur / speed) * 0.4));
     const first = lvl(segs[Math.max(0, cur)]);
     const startFade = pos < 1 ? 3 : 0.4;
+    const nowG = c.currentTime;
     // initial level
-    this.musicBus.gain.setValueAtTime(this.musicBus.gain.value, c.currentTime);
-    this.musicBus.gain.linearRampToValueAtTime(first.m * mv, t0 + startFade);
-    this.ambBus.gain.setValueAtTime(this.ambBus.gain.value, c.currentTime);
-    this.ambBus.gain.linearRampToValueAtTime(first.a * av, t0 + startFade);
+    this.musicBus.gain.setValueAtTime(this.musicBus.gain.value, nowG);
+    this._ramp(this.musicBus.gain, this.musicBus.gain.value, first.m * mv, t0, t0 + startFade, nowG);
+    this.ambBus.gain.setValueAtTime(this.ambBus.gain.value, nowG);
+    this._ramp(this.ambBus.gain, this.ambBus.gain.value, first.a * av, t0, t0 + startFade, nowG);
+    const settle = t0 + startFade + 0.02; // later ramps must not overlap the initial settle
     segs.forEach((seg, i) => {
-      if (seg.start <= pos + 0.01 && i !== 0) return;       // already inside / past
-      if (i > 0) {
-        const prev = lvl(segs[i - 1]), next = lvl(seg), when = T(seg.start), f = fade(seg);
-        // hold prev, then ramp to next over f seconds
-        this.musicBus.gain.setValueAtTime(prev.m * mv, when);
-        this.musicBus.gain.linearRampToValueAtTime(next.m * mv, when + f);
-        this.ambBus.gain.setValueAtTime(prev.a * av, when);
-        this.ambBus.gain.linearRampToValueAtTime(next.a * av, when + f);
-      }
+      if (i === 0) return;
+      if (seg.start <= pos + 0.01) return;       // already at or past this boundary
+      const prev = lvl(segs[i - 1]), next = lvl(seg), when = T(seg.start);
+      if (prev.m === next.m && prev.a === next.a) return;
+      // Music down by the break/chime (8 s fade-out ending at `when`); music in over 6 s from a sprint start.
+      let m0, m1;
+      if (next.m < prev.m) { m0 = when - this.breakFadeOut; m1 = when; }
+      else { m0 = when; m1 = when + this.sprintFadeIn; }
+      if (m1 <= settle) return;
+      if (m0 < settle) m0 = settle;
+      if (prev.m !== next.m) this._ramp(this.musicBus.gain, prev.m * mv, next.m * mv, m0, m1, t0);
+      if (prev.a !== next.a) this._ramp(this.ambBus.gain, prev.a * av, next.a * av, m0, m1, t0);
     });
-    // final fade-out at the end of the session
+    // final fade-out at the end of the session (8 s, down at the end)
     const endT = T(tl.total);
     if (endT > c.currentTime) {
-      this.musicBus.gain.setValueAtTime(lvl(segs[segs.length - 1]).m * mv, Math.max(c.currentTime, endT - 6));
-      this.musicBus.gain.linearRampToValueAtTime(0, endT);
-      this.ambBus.gain.setValueAtTime(lvl(segs[segs.length - 1]).a * av, Math.max(c.currentTime, endT - 6));
-      this.ambBus.gain.linearRampToValueAtTime(0, endT + 2);
+      const last = lvl(segs[segs.length - 1]);
+      this._ramp(this.musicBus.gain, last.m * mv, 0, endT - this.breakFadeOut, endT, t0);
+      this._ramp(this.ambBus.gain, last.a * av, 0, endT - this.breakFadeOut, endT + 2, t0);
     }
     // chimes at every transition
     this.chimeLog = this.chimeLog.filter(x => x.sessionT < pos);
@@ -224,25 +277,33 @@ export class SessionAudio {
     this.ensureMusic(true);
   }
 
-  /** Keep ≥150s of music chained ahead; tracks crossfade by `xf` seconds. */
+  /** Keep ≥150s of music chained ahead. The current song loops into itself with the strong-a fade
+   *  (8 s out to silence, next starts 1.5 s before the end and fades in over 6 s) until advanceSong(). */
   ensureMusic(force) {
     const c = this.ctx; if (!c || !this.tracks.length) return;
     if (!this.musicEnd || this.musicEnd < c.currentTime) this.musicEnd = c.currentTime + 0.2;
     let guard = 0;
-    while (this.musicEnd - c.currentTime < 150 && guard++ < 60) {
-      let k; do { k = Math.floor(Math.random() * this.tracks.length); } while (this.tracks.length > 1 && k === this.lastTrack);
-      this.lastTrack = k;
+    while (this.musicEnd - c.currentTime < this.musicLookahead && guard++ < 60) {
+      const k = Math.max(0, Math.min(this.songIndex, this.tracks.length - 1));
       const tr = this.tracks[k], s = c.createBufferSource(), g = c.createGain();
       s.buffer = tr.buf; s.connect(g); g.connect(this.musicBus);
-      const start = this.musicEnd, dur = tr.buf.duration, xf = Math.min(this.xf, dur / 3);
+      const start = this.musicEnd, dur = tr.buf.duration;
+      const fo = Math.min(this.fadeOut, dur * 0.4);
+      const fi = Math.min(this.fadeIn, dur * 0.4);
+      const ov = Math.min(this.fadeOverlap, fo);
       const first = this.musicSrcs.length === 0;
-      g.gain.setValueAtTime(first ? 1 : 0, start);
-      if (!first) g.gain.linearRampToValueAtTime(1, start + xf);
-      g.gain.setValueAtTime(1, start + dur - xf);
-      g.gain.linearRampToValueAtTime(0, start + dur);
+      if (first) {
+        g.gain.setValueAtTime(1, start);
+      } else {
+        g.gain.setValueAtTime(0, start);
+        g.gain.setValueCurveAtTime(this._cosIn(), start, fi);
+        g.gain.setValueAtTime(1, start + fi);
+      }
+      g.gain.setValueAtTime(1, Math.max(start, start + dur - fo));
+      g.gain.setValueCurveAtTime(this._cosOut(), start + dur - fo, fo);
       s.start(start);
-      const entry = { title: tr.title, artist: tr.artist, start, end: start + dur, src: s };
-      this.musicSrcs.push(s); this.musicQueue.push(entry); this.musicEnd = start + dur - xf;
+      const entry = { title: tr.title, artist: tr.artist, start, end: start + dur, src: s, index: k };
+      this.musicSrcs.push(s); this.musicQueue.push(entry); this.musicEnd = start + dur - ov;
       s.onended = () => {
         this.musicSrcs = this.musicSrcs.filter(x => x !== s);
         this.musicQueue = this.musicQueue.filter(q => q !== entry);
@@ -290,7 +351,7 @@ export class SessionAudio {
     this.layerNodes = null; this.lib = {}; this.pools = {};
     this.musicSrcs.forEach(s => { try { s.stop(); } catch (e) {} });
     this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} });
-    this.musicSrcs = []; this.musicQueue = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0; this.lastTrack = -1;
+    this.musicSrcs = []; this.musicQueue = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0; this.songIndex = 0;
     this.tracks = []; this.ambBuf = null; this.anchor = null;
     // keep ctx alive (created from a gesture) for reuse
     this.musicBus?.gain.cancelScheduledValues(0); this.ambBus?.gain.cancelScheduledValues(0);
