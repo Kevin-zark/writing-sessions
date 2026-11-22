@@ -1,19 +1,19 @@
 {
  "train": {
-  "src": "133099-train-steam-interior.mp3",
-  "seconds": 60.0,
-  "lufs": -24.4,
-  "true_peak_dbfs": -5.3,
-  "seam_level_jump_db": -3.4,
+  "src": "164766-in-the-train.mp3",
+  "seconds": 56.0,
+  "lufs": -17.6,
+  "true_peak_dbfs": -0.8,
+  "seam_level_jump_db": 0.47,
   "clipped_samples": 0,
   "lowpass": 0
  },
  "train_soft": {
-  "src": "133099-train-steam-interior.mp3",
-  "seconds": 60.0,
-  "lufs": -27.4,
-  "true_peak_dbfs": -9.0,
-  "seam_level_jump_db": 1.31,
+  "src": "164766-in-the-train.mp3",
+  "seconds": 56.0,
+  "lufs": -27.5,
+  "true_peak_dbfs": -8.0,
+  "seam_level_jump_db": 0.11,
   "clipped_samples": 0,
   "lowpass": 1400
  },
@@ -110,11 +110,12 @@
  "station_walla": {
   "src": "256626-euston-station.mp3",
   "seconds": 55.0,
-  "lufs": -25.4,
-  "true_peak_dbfs": -5.4,
-  "seam_level_jump_db": 0.76,
+  "lufs": -25.7,
+  "true_peak_dbfs": -8.5,
+  "seam_level_jump_db": -0.6,
   "clipped_samples": 0,
-  "lowpass": 900
+  "lowpass": 620,
+  "note": "I-muffle"
  },
  "luggage": {
   "src": "275173-luggage-rolling.mp3",
@@ -124,5 +125,23 @@
   "seam_level_jump_db": -1.31,
   "clipped_samples": 0,
   "lowpass": 1200
+ },
+ "luggage_s1": {
+  "src": "275173-luggage-rolling.mp3",
+  "seconds": 50.0,
+  "lufs": -42.4,
+  "true_peak_dbfs": -13.5,
+  "seam_level_jump_db": -1.05,
+  "clipped_samples": 0,
+  "highpass": 280
+ },
+ "city_s1": {
+  "src": "427841-city-quiet-night.mp3",
+  "seconds": 60.0,
+  "lufs": -33.9,
+  "true_peak_dbfs": -14.2,
+  "seam_level_jump_db": -1.67,
+  "clipped_samples": 0,
+  "highpass": 280
  }
 }

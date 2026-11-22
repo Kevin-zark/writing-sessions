@@ -1,14 +1,15 @@
 {
  "train": {
-  "src": "133099-train-steam-interior.mp3",
+  "src": "164766-in-the-train.mp3",
   "len": 60,
   "mono": false,
   "lufs": -24,
   "pick": "steady",
-  "limit": true
+  "limit": true,
+  "notes": "Freesound 164766 (rucisko), mid-boosted and layered with clacks from 721969/721970; baked to H5-a level"
  },
  "train_soft": {
-  "src": "133099-train-steam-interior.mp3",
+  "src": "164766-in-the-train.mp3",
   "len": 60,
   "mono": false,
   "lufs": -27,

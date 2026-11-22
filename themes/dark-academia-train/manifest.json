@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 3,
+ "version": 4,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -48,28 +48,28 @@
  },
  "ambienceLib": {
   "train": {
-   "src": "audio/amb/train.mp3",
-   "gain": 1.0,
-   "title": "Carriage rumble + wheel clatter, mid-boosted so phone speakers can reproduce it (moving legs)",
-   "sourceId": "133099",
+   "src": "audio/amb/train-164766.mp3",
+   "gain": 1.2653,
+   "title": "Carriage rumble + wheel clatter from an in-carriage recording, mid-boosted with extra rail-joint clacks so phone speakers can reproduce it (moving legs)",
+   "sourceId": "164766",
    "qa": {
-    "seconds": 60.0,
-    "lufs": -24.4,
-    "true_peak_dbfs": -5.3,
-    "seam_level_jump_db": -3.4,
+    "seconds": 56.0,
+    "lufs": -17.6,
+    "true_peak_dbfs": -0.8,
+    "seam_level_jump_db": 0.47,
     "clipped_samples": 0
    }
   },
   "train_soft": {
-   "src": "audio/amb/train_soft.mp3",
+   "src": "audio/amb/train_soft-164766.mp3",
    "gain": 1.0,
-   "title": "Same carriage, low-passed: wheels muffled by snow",
-   "sourceId": "133099",
+   "title": "Same in-carriage recording, low-passed: wheels muffled by snow",
+   "sourceId": "164766",
    "qa": {
-    "seconds": 60.0,
-    "lufs": -27.4,
-    "true_peak_dbfs": -9.0,
-    "seam_level_jump_db": 1.31,
+    "seconds": 56.0,
+    "lufs": -27.5,
+    "true_peak_dbfs": -8.0,
+    "seam_level_jump_db": 0.11,
     "clipped_samples": 0
    }
   },
@@ -204,15 +204,15 @@
    }
   },
   "station_walla": {
-   "src": "audio/amb/station_walla.mp3",
+   "src": "audio/amb/station_walla-muffled.mp3",
    "gain": 1.0,
-   "title": "Station hall voices + footsteps, muffled through glass",
+   "title": "Station hall voices, muffled through a carriage window (low-passed, smeared, short reverb)",
    "sourceId": "256626",
    "qa": {
     "seconds": 55.0,
-    "lufs": -25.4,
-    "true_peak_dbfs": -5.4,
-    "seam_level_jump_db": 0.76,
+    "lufs": -25.7,
+    "true_peak_dbfs": -8.5,
+    "seam_level_jump_db": -0.6,
     "clipped_samples": 0
    }
   },
@@ -226,6 +226,32 @@
     "lufs": -29.3,
     "true_peak_dbfs": -7.7,
     "seam_level_jump_db": -1.31,
+    "clipped_samples": 0
+   }
+  },
+  "luggage_s1": {
+   "src": "audio/amb/luggage-s1.mp3",
+   "gain": 1.0,
+   "title": "Luggage wheels, high-passed for the Greyfriars break so the approved I mix can be brought up to level without clipping",
+   "sourceId": "275173",
+   "qa": {
+    "seconds": 50.0,
+    "lufs": -42.4,
+    "true_peak_dbfs": -13.5,
+    "seam_level_jump_db": -1.05,
+    "clipped_samples": 0
+   }
+  },
+  "city_s1": {
+   "src": "audio/amb/city-s1.mp3",
+   "gain": 1.0,
+   "title": "Distant city hum, high-passed, Greyfriars break only (pairs with the approved I mix)",
+   "sourceId": "427841",
+   "qa": {
+    "seconds": 60.0,
+    "lufs": -33.9,
+    "true_peak_dbfs": -14.2,
+    "seam_level_jump_db": -1.67,
     "clipped_samples": 0
    }
   }
@@ -261,15 +287,15 @@
    "ambience": [
     {
      "layer": "station_walla",
-     "gain": 0.55
+     "gain": 2.5434
     },
     {
-     "layer": "luggage",
-     "gain": 0.5
+     "layer": "luggage_s1",
+     "gain": 4.6134
     },
     {
-     "layer": "city",
-     "gain": 0.35
+     "layer": "city_s1",
+     "gain": 3.2293
     }
    ]
   },
@@ -354,7 +380,7 @@
     },
     {
      "layer": "city",
-     "gain": 0.55
+     "gain": 0.8799
     }
    ],
    "music": [
@@ -388,7 +414,7 @@
      "ambience": [
       {
        "layer": "bells",
-       "gain": 0.6
+       "gain": 0.96
       }
      ],
      "landmark": {
@@ -963,14 +989,36 @@
   },
   {
    "kind": "ambience",
-   "title": "Steam Train Interior",
-   "author": "allh",
-   "url": "https://freesound.org/s/133099/",
+   "title": "in the train",
+   "author": "rucisko",
+   "url": "https://freesound.org/s/164766/",
    "license": "CC0 1.0",
    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
    "usedAs": [
     "train",
     "train_soft"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Inside the carriage of a steam train #1",
+   "author": "richwise",
+   "url": "https://freesound.org/s/721969/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "train"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Inside the carriage of a steam train #2",
+   "author": "richwise",
+   "url": "https://freesound.org/s/721970/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "train"
    ]
   },
   {
@@ -981,7 +1029,8 @@
    "license": "CC0 1.0",
    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
    "usedAs": [
-    "city"
+    "city",
+    "city_s1"
    ]
   },
   {
@@ -1092,7 +1141,8 @@
    "license": "CC0 1.0",
    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
    "usedAs": [
-    "luggage"
+    "luggage",
+    "luggage_s1"
    ]
   }
  ],
