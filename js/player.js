@@ -4,9 +4,13 @@ import { SceneStage, JourneyStage, WindowStage } from './scenes.js';
 import { planJourney, itemAt, legAt } from './journey.js';
 
 class Clock {
-  constructor(speed) { this.speed = speed; this.base = 0; this.t0 = null; }
+  constructor(speed) { this.speed = speed; this.base = 0; this.t0 = null; this.source = null; }
+  follow(fn) { this.source = fn; }
   start(pos = 0) { this.base = pos; this.t0 = Date.now(); }
-  pos() { return this.t0 == null ? this.base : this.base + (Date.now() - this.t0) / 1000 * this.speed; }
+  pos() {
+    if (this.source && this.t0 != null) return this.source();
+    return this.t0 == null ? this.base : this.base + (Date.now() - this.t0) / 1000 * this.speed;
+  }
   pause() { this.base = this.pos(); this.t0 = null; }
   resume() { if (this.t0 == null) this.t0 = Date.now(); }
   seek(p) { this.base = p; if (this.t0 != null) this.t0 = Date.now(); }
@@ -138,8 +142,10 @@ export class Player {
     }
     this.started = true;
     this.el.prep.classList.add('gone');
+    a.bindSession({ tl: this.tl, plan: this.plan, legs: this.m.legs, base: this.base, speed: this.speed });
+    this.clock.follow(() => this.audio.audioPos());
     this.clock.start(0);
-    a.schedule(this.tl, 0, this.speed);
+    a.seekTo(0).catch(() => {});
     this._mediaSession();
     this._tick();
     this.timer = setInterval(() => this._tick(), 200);
@@ -159,7 +165,9 @@ export class Player {
     if (showHud) {
       const t = fmtClock(loc.remaining);
       if (this.el.clock.textContent !== t) this.el.clock.textContent = t;
-    }
+      const lab = seg.type === 'sprint' ? `SPRINT ${seg.n}/${seg.of}` : 'BREAK';
+      if (this.el.label.textContent !== lab) this.el.label.textContent = lab;
+    } else if (this.el.label.textContent) this.el.label.textContent = '';
     this.el.bar.style.transform = `scaleX(${loc.progress.toFixed(4)})`;
     this._text(seg, loc);
     // scenes
@@ -180,7 +188,7 @@ export class Player {
       this._lastHealth = now;
       if (!this.paused) {
         if (!this.audio.running) this.audio.resume();
-        else if (Math.abs(this.audio.audioPos() - pos) > 2 * Math.max(1, this.speed)) this.audio.schedule(this.tl, pos, this.speed);
+        else if (!this._syncing && Math.abs(this.audio.audioPos() - pos) > 0.05 * Math.max(1, this.speed)) this.syncTo(pos);
         this.audio.ensureMusic();
       }
     }
@@ -202,8 +210,9 @@ export class Player {
     const pool = await this.audio.loadMusicPool(leg.id, leg.music, this.base);
     if (this.curLeg !== lg) return;
     const seg = this.tl.segs[this.curSeg];
-    // New leg starts at song 0. Music is already down at a post-break sprint start, so stop the previous source.
-    this.audio.setMusicPool(pool, { hard: true });
+    // Natural play: start the new leg's first song. A seek already placed the right offset — don't restart it.
+    if (!this._syncing) this.audio.setMusicPool(pool, { hard: true });
+    else { this.audio.tracks = pool; }
     this.audio.prunePools([leg.id, this.m.legs[lg + 1]?.id].filter(Boolean));
     this.events.push({ type: 'leg', leg: leg.id, pos: Math.round(this.clock.pos()), at: Date.now() });
   }
@@ -226,7 +235,7 @@ export class Player {
     // If the leg is also changing, _enterLeg starts at song 0 of the new list — do not increment the old list.
     if (seg.type === 'sprint' && (seg.n || 0) > 1) {
       const lg = legAt(this.plan, seg.start);
-      if (lg === this.curLeg) this.audio.advanceSong();
+      if (lg === this.curLeg && !this._syncing) this.audio.advanceSong();
     }
   }
 
@@ -264,10 +273,12 @@ export class Player {
   }
   resume() {
     if (!this.paused) return;
-    this.paused = false; this.audio.keepAlive = true; this.audio.resume(); this.clock.resume(); this.stage.resume();
+    this.paused = false; this.audio.keepAlive = true; this.audio.resume();
+    const frozen = this.clock.base;
+    this.clock.resume(); this.stage.resume();
     this.el.play.innerHTML = ICON.pause; this.el.play.setAttribute('aria-label', 'Pause');
     this.root.classList.remove('paused'); this._acquireWake();
-    this.audio.schedule(this.tl, this.clock.pos(), this.speed);
+    this.syncTo(frozen);
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
   }
   skip(dir) {
@@ -275,25 +286,38 @@ export class Player {
     const loc = locate(this.tl, this.clock.pos()); let i = loc.i;
     if (dir > 0) i = Math.min(this.tl.segs.length, i + 1);
     else i = (loc.elapsed > 3 / 1 || i === 0) ? i : i - 1;
-    if (i >= this.tl.segs.length) { this.clock.seek(this.tl.total - 0.01); } else this.clock.seek(this.tl.segs[i].start + 0.01);
-    this.audio.schedule(this.tl, this.clock.pos(), this.speed);
-    this._jumpStage(); this._tick();
+    const p = i >= this.tl.segs.length ? this.tl.total - 0.01 : this.tl.segs[i].start + 0.01;
+    return this.syncTo(p);
   }
   /** Move the session clock by `d` seconds (±5 from the buttons, double-tap and lock screen); everything re-syncs to it. */
   seekBy(d) {
     if (!this.started || this.finished) return;
     const cur = this.clock.pos(), p = Math.max(0, Math.min(this.tl.total - 0.5, cur + d));
-    this.clock.seek(p);
-    this.audio.schedule(this.tl, p, this.speed);
-    this._jumpStage(); this._tick(); this._showControls();
+    const r = this.syncTo(p); this._showControls(); return r;
     const fx = this.root.querySelector(d < 0 ? '.seekfx.l' : '.seekfx.r');
     if (fx) { fx.querySelector('span').textContent = (d < 0 ? '−' : '+') + Math.abs(Math.round(d)) + 's'; fx.classList.remove('go'); void fx.offsetWidth; fx.classList.add('go'); }
     this.events.push({ type: 'seek', d, pos: Math.round(p), at: Date.now() });
   }
+  /** Set a single session time t; visuals, music and ambience all derive from it. */
+  async syncTo(p) {
+    const t = Math.max(0, Math.min(this.tl.total - 0.001, p));
+    this._syncing = true;
+    this.clock.seek(t);
+    try {
+      await this.audio.seekTo(t);
+      this._jumpStage();
+      this._applyItem(itemAt(this.plan, t), true);
+      // Let _tick call _enterSegment so the HUD label / dataset update; _syncing is still set so music is not advanced.
+      this._tick();
+    } finally {
+      this._syncing = false;
+    }
+    return t;
+  }
   /** After any clock jump, put the picture where the clock says (bypasses the "stage ran ahead" guard). */
   _jumpStage() {
     const pos = this.clock.pos();
-    if (this.v2) { const w = itemAt(this.plan, pos); this.stage.jump(w, pos); this._applyItem(w); }
+    if (this.v2) { const w = itemAt(this.plan, pos); this.stage.jump(w, pos); this._applyItem(w, true); }
     else { const sc = sceneAt(this.plan, pos); if (sc !== this.stage.cur) this.stage.show(sc); }
   }
 

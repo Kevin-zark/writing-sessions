@@ -234,7 +234,21 @@ export class WindowStage {
     if (want !== this.cur) return this._show(want, {});
     this._maybePreload(pos);
   }
-  jump(want) { if (want >= 0 && want !== this.cur) return this._show(want, {}); }
+  jump(want, pos) {
+    if (want >= 0 && want !== this.cur) return this._show(want, { instant: true, pos });
+    if (want === this.cur) this._seekVisual(pos);
+  }
+  _seekVisual(pos) {
+    if (pos == null) return;
+    if (this.top === 'canvas') { try { this.win.draw(this.getPos ? this.getPos() : pos); } catch (e) {} }
+    else if (this.st?.mode === 'video' && this.st.video) {
+      const it = this.plan.items[this.cur], d = this.st.video.duration;
+      if (it && d && Number.isFinite(d) && d > 0) {
+        const off = ((pos - it.start) % d + d) % d;
+        try { this.st.video.currentTime = off; } catch (e) {}
+      }
+    }
+  }
 
   _maybePreload(pos) {
     if (this.top !== 'canvas' || this.speed !== 1) return;

@@ -1,3 +1,5 @@
+import { FADE, buildMusicRuns, musicAt, busAt, layersAt, layerOffset, chimesFrom, lvlOf } from './sync.js';
+
 // Web Audio session soundtrack: synthesized chimes, music chain with dip-to-quiet fades,
 // looping ambience, all scheduled on the audio clock (so chimes stay on time even
 // if the page is throttled with the screen locked). iOS ignores <audio>.volume,
@@ -14,6 +16,8 @@ export class SessionAudio {
     // sprint→break: music is down when the fall chime hits; break→sprint uses the 6 s fade-in
     this.breakFadeOut = 8; this.sprintFadeIn = 6;
     this.musicLookahead = 150;
+    this.seekRamp = FADE.seekRamp;
+    this.musicHalted = false;
     this.chimeLog = []; // for tests / debugging: {sessionT, kind}
   }
   /** Must be called synchronously inside a user tap. */
@@ -96,6 +100,7 @@ export class SessionAudio {
   setMusicPool(pool, { hard = false } = {}) {
     if (!pool || pool === this.tracks) return;
     const c = this.ctx; this.tracks = pool; this.songIndex = 0;
+    this.musicHalted = false;
     if (!c) return;
     this._stopQueue(hard);
     this.ensureMusic();
@@ -104,6 +109,7 @@ export class SessionAudio {
   advanceSong() {
     if (!this.tracks.length) return;
     if (this.songIndex < this.tracks.length - 1) this.songIndex++;
+    this.musicHalted = false;
     this._stopQueue(true);
     this.ensureMusic();
   }
@@ -200,7 +206,39 @@ export class SessionAudio {
   resume() { return this.ctx?.resume(); }
 
   /** Session position implied by the audio clock (for drift detection). */
-  audioPos() { return this.anchor ? this.anchor.pos0 + (this.ctx.currentTime - this.anchor.t0) * this.speed : 0; }
+  audioPos() {
+    if (!this.anchor || !this.ctx) return 0;
+    if (this._gate != null && this.ctx.currentTime < this._gate) return this.anchor.pos0;
+    return this.anchor.pos0 + (this.ctx.currentTime - this.anchor.t0) * this.speed;
+  }
+  bindSession({ tl, plan, legs, base, speed }) {
+    this.tl = tl; this.plan = plan; this.legs = legs;
+    if (base) this.themeBase = base;
+    if (speed != null) this.speed = speed;
+    this._runs = (tl && plan && legs) ? buildMusicRuns(tl, plan, legs) : null;
+  }
+  durations() {
+    const d = {};
+    for (const pool of Object.values(this.pools || {})) {
+      for (const tr of pool) if (tr.buf && tr.src) d[tr.src] = tr.buf.duration;
+    }
+    for (const tr of this.tracks || []) if (tr.buf && tr.src) d[tr.src] = tr.buf.duration;
+    return d;
+  }
+  /** Snapshot of music / ambience / buses at session time t (default: live audio clock). */
+  inspect(t) {
+    if (t == null) t = this.audioPos();
+    const mus = this._runs ? musicAt(t, this._runs, this.durations()) : { voices: [], primary: null, run: null };
+    const buses = this.tl ? busAt(t, this.tl, this.vol) : { m: 0, a: 0 };
+    const lay = this.plan ? layersAt(t, this.plan) : { layers: [], periodStart: {} };
+    const layers = (lay.layers || []).map((L) => {
+      const buf = this.lib?.[L.layer]?.buf;
+      const dur = buf?.duration || 0;
+      const ls = dur > 2 ? 0.05 : 0, le = dur > 2 ? dur - 0.03 : dur;
+      return { layer: L.layer, offset: layerOffset(t, lay.periodStart[L.layer] ?? 0, ls, le), target: (L.gain ?? 1) * (this.lib?.[L.layer]?.gain ?? 1), loopStart: ls, loopEnd: le };
+    });
+    return { t, song: mus.primary, voices: mus.voices, run: mus.run, buses, layers, item: { id: lay.id, label: lay.label, kind: lay.kind, start: lay.start, end: lay.end, index: lay.item } };
+  }
 
   startAmbience() {
     if (!this.ambBuf || this.ambSrc) return;
@@ -280,7 +318,7 @@ export class SessionAudio {
   /** Keep ≥150s of music chained ahead. The current song loops into itself with the strong-a fade
    *  (8 s out to silence, next starts 1.5 s before the end and fades in over 6 s) until advanceSong(). */
   ensureMusic(force) {
-    const c = this.ctx; if (!c || !this.tracks.length) return;
+    const c = this.ctx; if (!c || !this.tracks.length || this.musicHalted) return;
     if (!this.musicEnd || this.musicEnd < c.currentTime) this.musicEnd = c.currentTime + 0.2;
     let guard = 0;
     while (this.musicEnd - c.currentTime < this.musicLookahead && guard++ < 60) {
@@ -343,6 +381,185 @@ export class SessionAudio {
       });
     });
   }
+  _cosSlice(kind, x0, x1, n = 256) {
+    const c = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = x0 + (x1 - x0) * i / (n - 1);
+      c[i] = kind === 'in' ? Math.sin(0.5 * Math.PI * x) : Math.cos(0.5 * Math.PI * x);
+    }
+    return c;
+  }
+  _automateVoice(g, v, when, D) {
+    const u = v.offset, fo = Math.min(this.fadeOut, D * 0.4), fi = Math.min(this.fadeIn, D * 0.4);
+    g.gain.cancelScheduledValues(when);
+    g.gain.setValueAtTime(Math.max(0, v.gain), when);
+    if (v.k > 0 && u < fi) {
+      const left = fi - u;
+      g.gain.setValueCurveAtTime(this._cosSlice('in', u / fi, 1), when, Math.max(0.01, left));
+      g.gain.setValueAtTime(1, when + left);
+    }
+    const outStart = D - fo;
+    if (u < outStart) {
+      g.gain.setValueAtTime(1, when + (outStart - u));
+      g.gain.setValueCurveAtTime(this._cosOut(), when + (outStart - u), fo);
+    } else if (D - u > 0.01) {
+      const x0 = (u - outStart) / fo;
+      g.gain.setValueCurveAtTime(this._cosSlice('out', x0, 1), when, D - u);
+    }
+  }
+  _restartLayersAt(lay, t, when) {
+    const c = this.ctx; if (!c || !this.lib) return;
+    if (!this.layerNodes) this.layerNodes = {};
+    const want = {};
+    (lay.layers || []).forEach((L) => {
+      if (this.lib[L.layer]) want[L.layer] = (L.gain ?? 1) * (this.lib[L.layer].gain ?? 1);
+    });
+    for (const [k, n] of Object.entries(this.layerNodes)) {
+      try { n.s.stop(when); } catch (e) {}
+      try { n.s.disconnect(); n.g.disconnect(); } catch (e) {}
+      delete this.layerNodes[k];
+    }
+    for (const k of Object.keys(want)) {
+      const v = this.lib[k]; if (!v?.buf) continue;
+      const s = c.createBufferSource(), g = c.createGain();
+      s.buffer = v.buf; s.loop = true;
+      const dur = v.buf.duration;
+      const ls = dur > 2 ? 0.05 : 0, le = dur > 2 ? dur - 0.03 : dur;
+      s.loopStart = ls; s.loopEnd = le;
+      const off = layerOffset(t, lay.periodStart[k] ?? 0, ls, le);
+      s.connect(g); g.connect(this.ambBus);
+      g.gain.setValueAtTime(want[k], when);
+      try { s.start(when, off); } catch (e) { try { s.start(when); } catch (err) {} }
+      this.layerNodes[k] = { s, g, target: want[k] };
+    }
+    this.lastLayers = lay.layers;
+  }
+
+  /**
+   * Jump the soundtrack to session time `t`: 50–100 ms bus ramp down, restart
+   * music and ambience at the computed offsets (including mid-fade gains), then ramp up.
+   */
+  async seekTo(t, { play = true } = {}) {
+    const c = this.ctx; if (!c || !this.tl) return t;
+    t = Math.max(0, Math.min((this.tl.total || t) - 0.001, t));
+    if (this._runs == null && this.plan && this.legs) this._runs = buildMusicRuns(this.tl, this.plan, this.legs);
+
+    // Hold the session clock at t until the new sources actually start (load may take time).
+    this.anchor = { t0: c.currentTime, pos0: t };
+    this._gate = Infinity;
+
+    const r = this.seekRamp || 0.08;
+    const now0 = c.currentTime, muteAt = now0 + r;
+    for (const g of [this.musicBus.gain, this.ambBus.gain]) {
+      g.cancelScheduledValues(now0);
+      try { g.setValueAtTime(g.value, now0); } catch (e) { g.setValueAtTime(0, now0); }
+      g.linearRampToValueAtTime(0, muteAt);
+    }
+    this.musicQueue.forEach((q) => { try { q.src.stop(muteAt); } catch (e) {} });
+    this.musicQueue = []; this.musicSrcs = [];
+    this.musicEnd = 0;
+    this.musicHalted = true;
+
+    let mus = this._runs ? musicAt(t, this._runs, this.durations()) : { voices: [], primary: null, run: null };
+    const song = mus.primary || mus.run?.song;
+    if (song && this.legs && this.themeBase) {
+      const list = this.legs[song.leg]?.music;
+      const pool = await this.loadMusicPool(song.legId, list, this.themeBase);
+      if (pool && pool.length) { this.tracks = pool; this.songIndex = song.index; }
+    }
+
+    // Timestamp AFTER the load so BufferSource.start is never in the past.
+    const now = c.currentTime;
+    const when = Math.max(now + 0.02, muteAt);
+    const buses = busAt(t, this.tl, this.vol);
+    mus = this._runs ? musicAt(t, this._runs, this.durations()) : mus;
+    const lay = this.plan ? layersAt(t, this.plan) : { layers: [], periodStart: {} };
+
+    this.musicHalted = !(play && mus.voices.length && (buses.m > 1e-4 || t < (mus.run?.audibleEnd ?? 0) - 0.01));
+    if (!this.musicHalted) {
+      for (const v of mus.voices) {
+        const tr = (this.tracks || []).find(x => x.src === v.src) || this.tracks[v.index];
+        if (!tr?.buf) continue;
+        const s = c.createBufferSource(), g = c.createGain();
+        s.buffer = tr.buf; s.connect(g); g.connect(this.musicBus);
+        this._automateVoice(g, v, when, tr.buf.duration);
+        const off = Math.max(0, Math.min(v.offset, Math.max(0, tr.buf.duration - 0.001)));
+        try { s.start(when, off); } catch (e) { try { s.start(when); } catch (err) {} }
+        const entry = { title: tr.title, artist: tr.artist, start: when - v.offset, end: when + (tr.buf.duration - v.offset), src: s, index: v.index };
+        this.musicSrcs.push(s); this.musicQueue.push(entry);
+        s.onended = () => {
+          this.musicSrcs = this.musicSrcs.filter(x => x !== s);
+          this.musicQueue = this.musicQueue.filter(q => q !== entry);
+        };
+      }
+      if (mus.voices.length && mus.duration) {
+        const last = mus.voices[mus.voices.length - 1];
+        this.musicEnd = when + (mus.duration - last.offset) - this.fadeOverlap;
+      } else this.musicEnd = when + 0.2;
+      this.ensureMusic();
+    } else {
+      this.musicEnd = 0;
+    }
+
+    if (this.lib) this._restartLayersAt(lay, t, when);
+
+    this.musicBus.gain.cancelScheduledValues(when);
+    this.musicBus.gain.setValueAtTime(0, when);
+    this.musicBus.gain.linearRampToValueAtTime(buses.m, when + r);
+    this.ambBus.gain.cancelScheduledValues(when);
+    this.ambBus.gain.setValueAtTime(0, when);
+    this.ambBus.gain.linearRampToValueAtTime(buses.a, when + r);
+
+    this.anchor = { t0: when, pos0: t };
+    this._gate = when;
+    this._scheduleFrom(t, when);
+    return t;
+  }
+
+  /** Schedule future bus ramps + chimes from session position `pos`, anchored at audio time `t0`. */
+  _scheduleFrom(pos, t0) {
+    const c = this.ctx, tl = this.tl; if (!c || !tl) return;
+    const T = (s) => t0 + (s - pos) / this.speed;
+    const settle = t0 + (this.seekRamp || 0.08) + 0.02;
+    const mv = this.vol.music, av = this.vol.amb, segs = tl.segs;
+    if (pos < FADE.startIn && segs[0]) {
+      const L0 = lvlOf(segs[0]), cur = busAt(pos, tl, this.vol);
+      const end = t0 + (FADE.startIn - pos) / this.speed;
+      if (end > settle) {
+        this._ramp(this.musicBus.gain, cur.m, L0.m * mv, settle, end, settle);
+        this._ramp(this.ambBus.gain, cur.a, L0.a * av, settle, end, settle);
+      }
+    }
+    segs.forEach((seg, i) => {
+      if (i === 0) return;
+      if (seg.start <= pos + 0.01) return;
+      const prev = lvlOf(segs[i - 1]), next = lvlOf(seg);
+      if (prev.m === next.m && prev.a === next.a) return;
+      const when = T(seg.start);
+      let m0, m1;
+      if (next.m < prev.m) { m0 = when - this.breakFadeOut; m1 = when; }
+      else { m0 = when; m1 = when + this.sprintFadeIn; }
+      if (m1 <= settle) return;
+      if (m0 < settle) m0 = settle;
+      if (prev.m !== next.m) this._ramp(this.musicBus.gain, prev.m * mv, next.m * mv, m0, m1, settle);
+      if (prev.a !== next.a) this._ramp(this.ambBus.gain, prev.a * av, next.a * av, m0, m1, settle);
+    });
+    const endT = T(tl.total);
+    if (endT > settle) {
+      const L = lvlOf(segs[segs.length - 1]);
+      this._ramp(this.musicBus.gain, L.m * mv, 0, endT - this.breakFadeOut, endT, settle);
+      this._ramp(this.ambBus.gain, L.a * av, 0, endT - this.breakFadeOut, endT + 2, settle);
+    }
+    this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} });
+    this.chimeNodes = [];
+    this.chimeLog = (this.chimeLog || []).filter(x => x.sessionT < pos);
+    for (const ev of chimesFrom(pos, tl)) {
+      const when = Math.max(T(ev.sessionT), t0 + 0.02);
+      this._chime(ev.kind, when);
+      this.chimeLog.push({ sessionT: ev.sessionT, kind: ev.kind });
+    }
+  }
+
   /** Test/preview helper. */
   previewChime() { if (this.ctx) this._chime('rise', this.ctx.currentTime + 0.02); }
   close() {

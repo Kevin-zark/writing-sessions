@@ -5,6 +5,10 @@ import { buildRequest, submitRequest, loadRequests, saveRequests, mailtoUrl } fr
 import { CONFIG } from './config.js';
 
 const $ = (s, r = document) => r.querySelector(s);
+const ASSET = (() => {
+  const a = (typeof window !== 'undefined' && (window.__WS_ROOT || document.documentElement.getAttribute('data-asset-root'))) || '';
+  return a && !String(a).endsWith('/') ? a + '/' : a;
+})();
 const qs = new URLSearchParams(location.search);
 const SPEED = Math.max(1, Number(qs.get('speed')) || 1);       // debug: ?speed=60 runs the clock 60x faster
 const SKEY = 'ws.settings.v1';
@@ -36,7 +40,7 @@ function renderLibrary() {
     <header class="top"><h1>Writing Sessions</h1><p>Immersive sprints for your stories</p></header>
     <div class="cards">${themes.map(t => `
       <button class="card-theme" data-theme="${esc(t.id)}">
-        <div class="cover" style="background-image:url('themes/${esc(t.id)}/${esc(t.cover)}')"></div>
+        <div class="cover" style="background-image:url('${ASSET}themes/${esc(t.id)}/${esc(t.cover)}')"></div>
         <div class="meta"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p>
         <span class="pill">${t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span></div>
       </button>`).join('') || '<p class="muted">No themes yet.</p>'}
@@ -49,7 +53,7 @@ function openSheet(t) {
   sh.hidden = false; sh.innerHTML = `
     <div class="sheet-card">
       <button class="sheet-x" aria-label="Close"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></button>
-      <div class="cover small" style="background-image:url('themes/${esc(t.id)}/${esc(t.cover)}')"></div>
+      <div class="cover small" style="background-image:url('${ASSET}themes/${esc(t.id)}/${esc(t.cover)}')"></div>
       <h2>${esc(t.title)}</h2><p class="muted">${esc(t.description)}</p>
       ${presetChips()}
       <p class="sum" id="sheet-sum">${s.text} · about ${s.total} total${settings.intro ? '' : ' · no intro'}${settings.outro ? '' : ' · no outro'}</p>
@@ -62,7 +66,7 @@ function openSheet(t) {
   $('#begin').onclick = () => { sh.hidden = true; begin(t); };
 }
 function begin(t) {
-  const base = `themes/${t.id}/`;
+  const base = `${ASSET}themes/${t.id}/`;
   player = new Player({ root: $('#player'), manifest: t, base, settings: { ...clampCfg(settings), intro: settings.intro, outro: settings.outro,
     musicVol: settings.musicVol, ambVol: settings.ambVol, chimeVol: settings.chimeVol, wakeLock: settings.wakeLock },
     speed: SPEED, audio, onExit: () => { player = null; document.body.classList.remove('playing'); } });
@@ -169,8 +173,8 @@ function setTab(t) {
 async function init() {
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
   try {
-    const idx = await (await fetch('themes/index.json', { cache: 'no-cache' })).json();
-    themes = (await Promise.all(idx.themes.map(async id => { try { return await (await fetch(`themes/${id}/manifest.json`, { cache: 'no-cache' })).json(); } catch (e) { return null; } }))).filter(Boolean);
+    const idx = await (await fetch(ASSET + 'themes/index.json', { cache: 'no-cache' })).json();
+    themes = (await Promise.all(idx.themes.map(async id => { try { return await (await fetch(`${ASSET}themes/${id}/manifest.json`, { cache: 'no-cache' })).json(); } catch (e) { return null; } }))).filter(Boolean);
   } catch (e) { themes = []; }
   setTab('library');
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -179,7 +183,7 @@ async function init() {
     const reload = () => { if (reloading) return; if (window.__ws?.started && !window.__ws.finished && !window.__ws.closed) { window.__reloadPending = true; return; } reloading = true; location.reload(); };
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) reload(); });
     navigator.serviceWorker.addEventListener('message', (e) => { if (e.data?.type === 'sw-updated' && hadController) reload(); });
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    navigator.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' }).then(reg => {
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
       setInterval(() => { if (window.__reloadPending && !(window.__ws?.started && !window.__ws.finished)) reload(); }, 5000);
     }).catch(() => {});

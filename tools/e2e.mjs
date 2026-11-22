@@ -79,17 +79,17 @@ if (RUNS.includes('A')) {
   ok('A: music queue cycles multiple tracks', await page.evaluate(() => new Set((window.__app.audio.musicQueue || []).map(q => q.title)).size >= 1 && window.__app.audio.tracks.length >= 1));
   if (!WINDOW) {
     // schema 2: jump to 6 s before the first in-leg bridge, then watch loop → bridge → loop
-    const br = await page.evaluate(() => { const its = window.__ws.plan.items; const k = its.findIndex((x, i) => i > 1 && x.kind === 'bridge' && its[i - 1].kind === 'loop'); window.__ws.clock.seek(its[k].start - 6); return { k, id: its[k].id, next: its[k + 1].id }; });
+    const br = await page.evaluate(async () => { const its = window.__ws.plan.items; const k = its.findIndex((x, i) => i > 1 && x.kind === 'bridge' && its[i - 1].kind === 'loop'); await window.__ws.syncTo(its[k].start - 6); return { k, id: its[k].id, next: its[k + 1].id }; });
     await page.waitForFunction((n) => window.__ws.stage.log.some(x => x.id === n), br.next, { timeout: 40000 }).catch(() => {});
     const chainLog = await page.evaluate(() => window.__ws.stage.log.slice(-4).map(x => x.id + ':' + x.mode));
     ok('A: loop → bridge → loop chained without a cut', chainLog.includes(br.id + ':chain') && chainLog.includes(br.next + ':chain'), chainLog.join(' '));
   } else {
     // schema 3: cross a segment boundary while watching frames: the window must keep moving and never blank
-    const T = await page.evaluate(() => { const w = window.__ws, its = w.plan.items, k = its.findIndex((x, i) => i > 1 && x.kind === 'cruise' && its[i - 1].kind === 'cruise' && its[i - 1].scene !== x.scene); w.clock.seek(its[k].start - 3); w._jumpStage(); w._tick(); return { id: its[k].id, at: its[k].start }; });
+    const T = await page.evaluate(async () => { const w = window.__ws, its = w.plan.items, k = its.findIndex((x, i) => i > 1 && x.kind === 'cruise' && its[i - 1].kind === 'cruise' && its[i - 1].scene !== x.scene); await w.syncTo(its[k].start - 3); return { id: its[k].id, at: its[k].start }; });
     const dark = []; for (let i = 0; i < 12; i++) { await page.waitForTimeout(500); dark.push(await page.evaluate(() => { const c = document.querySelector('#player canvas'), g = document.createElement('canvas'); g.width = 32; g.height = 18; const x = g.getContext('2d'); x.drawImage(c, 0, 0, 32, 18); const d = x.getImageData(0, 0, 32, 18).data; let s = 0; for (let j = 0; j < d.length; j += 4) s += d[j] + d[j + 1] + d[j + 2]; return s / (d.length / 4) / 3; })); }
     ok('A: crossing into the next cruise segment never blanks the window', Math.min(...dark) > 12 && await page.evaluate((id) => window.__ws.stage.info.id === id, T.id), 'min luma ' + Math.min(...dark).toFixed(0));
     // a landmark must slide past exactly once: it is drawn only inside its window, moving right→left
-    const L = await page.evaluate(() => { const w = window.__ws, k = w.plan.items.findIndex(x => x.kind === 'cruise' && x.lmWin && x.scene.landmark?.src); const it = w.plan.items[k]; w.clock.seek(it.lmWin[0] + (it.lmWin[1] - it.lmWin[0]) * 0.5); w._jumpStage(); w._tick(); return { id: it.id, win: it.lmWin }; });
+    const L = await page.evaluate(async () => { const w = window.__ws, k = w.plan.items.findIndex(x => x.kind === 'cruise' && x.lmWin && x.scene.landmark?.src); const it = w.plan.items[k]; await w.syncTo(it.lmWin[0] + (it.lmWin[1] - it.lmWin[0]) * 0.5); return { id: it.id, win: it.lmWin }; });
     await page.waitForTimeout(1500); await page.screenshot({ path: SHOTS + '09-landmark-passby.png' });
     ok('A: landmark pass-by window exists and the stage is on its segment', await page.evaluate((id) => window.__ws.stage.info.id.startsWith(id.replace(/-lm$|-post$/, '')), L.id), JSON.stringify(L));
   }
@@ -101,16 +101,17 @@ if (RUNS.includes('A')) {
   ok('A: forward 5 s moves the clock +5', Math.abs(p1 - p0 - 5) < 0.6, (p1 - p0).toFixed(2));
   await page.evaluate(() => window.__ws.seekBy(-5)); const p2 = await P();
   ok('A: back 5 s moves the clock -5', Math.abs(p2 - p1 + 5) < 0.6, (p2 - p1).toFixed(2));
-  await page.evaluate(() => { const w = window.__ws, b1 = w.tl.segs.find(x => x.type === 'break'); w.clock.seek(b1.start + 2); w.audio.schedule(w.tl, w.clock.pos(), 1); w._jumpStage(); w._tick(); });
+  await page.evaluate(async () => { const w = window.__ws, b1 = w.tl.segs.find(x => x.type === 'break'); await w.syncTo(b1.start + 2); });
   await page.waitForTimeout(600);
   await page.evaluate(() => window.__ws.seekBy(-5));
   await page.waitForTimeout(700);
   const back = await page.evaluate(() => { const w = window.__ws, pos = w.clock.pos(); return { label: document.querySelector('.hud-label').textContent, clock: document.querySelector('.hud-clock').textContent, seg: w.tl.segs[w.curSeg].type, stage: w.stage.info.id, want: w.plan.items[w.plan.items.findIndex(i => i.start <= pos && pos < i.end)]?.id, st: w.audio.ctx.state }; });
   ok('A: stepping back across a phase boundary lands in the previous sprint, label/timer/picture in sync', back.seg === 'sprint' && back.label === 'SPRINT 1/4' && /^00:0[0-4]$/.test(back.clock) && back.stage === back.want && back.st === 'running', JSON.stringify(back));
   const q0 = await P();
-  await page.mouse.click(780, 300); await page.waitForTimeout(80); await page.mouse.click(780, 300); await page.waitForTimeout(300);
+  // Landscape 844×390: tap mid-height so we miss the bottom ctl-row; wait long enough for async seekTo.
+  await page.mouse.click(780, 180); await page.waitForTimeout(120); await page.mouse.click(780, 180); await page.waitForTimeout(500);
   const q1 = await P(); ok('A: double-tap on the right side skips +5 s', q1 - q0 > 4 && q1 - q0 < 6.5, (q1 - q0).toFixed(2));
-  await page.mouse.click(60, 300); await page.waitForTimeout(80); await page.mouse.click(60, 300); await page.waitForTimeout(300);
+  await page.mouse.click(60, 180); await page.waitForTimeout(120); await page.mouse.click(60, 180); await page.waitForTimeout(500);
   const q2 = await P(); ok('A: double-tap on the left side rewinds 5 s', q1 - q2 > 3.5 && q1 - q2 < 6.5, (q1 - q2).toFixed(2));
   ok('A: media session has seekbackward/seekforward handlers', await page.evaluate(() => { let n = 0; for (const a of ['seekbackward','seekforward']) { try { navigator.mediaSession.setActionHandler(a, navigator.mediaSession.__h || (() => {})); n++; } catch (e) {} } return n === 2; }));
   // backgrounding: no element re-creation, no extra audio layers, clock keeps wall-clock time
