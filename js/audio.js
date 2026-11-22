@@ -16,9 +16,22 @@ export class SessionAudio {
     if (!this.ctx) {
       this.ctx = new AC();
       const c = this.ctx;
-      this.master = c.createGain(); this.master.connect(c.destination);
+      this.master = c.createGain();
+      // Hard clip at −1.2 dBFS after the buses sum, so music+amb never exceeds −1 dBTP at the DAC.
+      // (The amb compressor is amb-only and can leak; the two buses can also add constructively.)
+      this.outClip = this._clipper(-1.2);
+      this.master.connect(this.outClip); this.outClip.connect(c.destination);
       this.musicBus = c.createGain(); this.musicBus.gain.value = 0; this.musicBus.connect(this.master);
-      this.ambBus = c.createGain(); this.ambBus.gain.value = 0; this.ambBus.connect(this.master);
+      this.ambBus = c.createGain(); this.ambBus.gain.value = 0;
+      // Peak limiter on the ambience bus only (music gain is untouched).
+      this.ambLimiter = c.createDynamicsCompressor();
+      this.ambLimiter.threshold.value = -1.5;
+      this.ambLimiter.knee.value = 0;
+      this.ambLimiter.ratio.value = 20;
+      this.ambLimiter.attack.value = 0.001;
+      this.ambLimiter.release.value = 0.08;
+      this.ambBus.connect(this.ambLimiter);
+      this.ambLimiter.connect(this.master);
       this.chimeBus = c.createGain(); this.chimeBus.connect(this.master);
       // gentle shared reverb for chimes
       this.verb = c.createConvolver(); this.verb.buffer = this._impulse(2.6);
@@ -37,6 +50,13 @@ export class SessionAudio {
     const c = this.ctx, n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); }
     return b;
+  }
+  /** Hard-clip WaveShaper at `db` dBFS. */
+  _clipper(db) {
+    const ceil = Math.pow(10, db / 20), n = 65536, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) curve[i] = Math.max(-ceil, Math.min(ceil, (i / (n - 1)) * 2 - 1));
+    const sh = this.ctx.createWaveShaper(); sh.curve = curve; sh.oversample = 'none';
+    return sh;
   }
   async _load(url) {
     const r = await fetch(url); if (!r.ok) throw new Error('audio ' + r.status);

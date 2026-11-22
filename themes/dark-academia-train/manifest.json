@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 4,
+ "version": 5,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -49,7 +49,7 @@
  "ambienceLib": {
   "train": {
    "src": "audio/amb/train-164766.mp3",
-   "gain": 1.2653,
+   "gain": 3.1783,
    "title": "Carriage rumble + wheel clatter from an in-carriage recording, mid-boosted with extra rail-joint clacks so phone speakers can reproduce it (moving legs)",
    "sourceId": "164766",
    "qa": {
@@ -62,7 +62,7 @@
   },
   "train_soft": {
    "src": "audio/amb/train_soft-164766.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Same in-carriage recording, low-passed: wheels muffled by snow",
    "sourceId": "164766",
    "qa": {
@@ -75,7 +75,7 @@
   },
   "city": {
    "src": "audio/amb/city.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Distant city hum through glass",
    "sourceId": "427841",
    "qa": {
@@ -88,7 +88,7 @@
   },
   "bells": {
    "src": "audio/amb/bells.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Distant church bells",
    "sourceId": "413157",
    "qa": {
@@ -101,7 +101,7 @@
   },
   "rain_glass": {
    "src": "audio/amb/rain_glass.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Light rain on the window",
    "sourceId": "235827",
    "qa": {
@@ -114,7 +114,7 @@
   },
   "lake_lap": {
    "src": "audio/amb/lake_lap.mp3",
-   "gain": 1.4,
+   "gain": 3.5167,
    "title": "Lake water lapping, heard through glass",
    "sourceId": "614299",
    "qa": {
@@ -127,7 +127,7 @@
   },
   "forest_wind": {
    "src": "audio/amb/forest_wind.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Soft wind in winter pines",
    "sourceId": "352436",
    "qa": {
@@ -140,7 +140,7 @@
   },
   "stream": {
    "src": "audio/amb/stream.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Running water under ice / below the bridge",
    "sourceId": "318064",
    "qa": {
@@ -153,7 +153,7 @@
   },
   "wind_high": {
    "src": "audio/amb/wind_high.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Mountain wind",
    "sourceId": "117513",
    "qa": {
@@ -166,7 +166,7 @@
   },
   "blizzard": {
    "src": "audio/amb/blizzard.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Howling blizzard gusts",
    "sourceId": "117513",
    "qa": {
@@ -179,7 +179,7 @@
   },
   "window_whistle": {
    "src": "audio/amb/window_whistle.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Wind whistling through the window frame",
    "sourceId": "69512",
    "qa": {
@@ -192,7 +192,7 @@
   },
   "tunnel": {
    "src": "audio/amb/tunnel.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Enclosed tunnel roar (pressure change)",
    "sourceId": "475500",
    "qa": {
@@ -205,7 +205,7 @@
   },
   "station_walla": {
    "src": "audio/amb/station_walla-muffled.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Station hall voices, muffled through a carriage window (low-passed, smeared, short reverb)",
    "sourceId": "256626",
    "qa": {
@@ -218,7 +218,7 @@
   },
   "luggage": {
    "src": "audio/amb/luggage.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Luggage wheels and handling, muffled",
    "sourceId": "275173",
    "qa": {
@@ -231,7 +231,7 @@
   },
   "luggage_s1": {
    "src": "audio/amb/luggage-s1.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Luggage wheels, high-passed for the Greyfriars break so the approved I mix can be brought up to level without clipping",
    "sourceId": "275173",
    "qa": {
@@ -244,7 +244,7 @@
   },
   "city_s1": {
    "src": "audio/amb/city-s1.mp3",
-   "gain": 1.0,
+   "gain": 2.5119,
    "title": "Distant city hum, high-passed, Greyfriars break only (pairs with the approved I mix)",
    "sourceId": "427841",
    "qa": {
