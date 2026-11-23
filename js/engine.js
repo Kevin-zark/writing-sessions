@@ -38,7 +38,11 @@ export function buildTimeline(cfg) {
     push('sprint', c.sprintMin * 60, { n: i, of: c.sprints });
     if (i < c.sprints && c.breakMin > 0) push('break', c.breakMin * 60, { n: i, of: c.sprints });
   }
-  if (c.outro) push('outro', OUTRO_SEC);
+  if (c.outro) {
+    const classic = c.sprints === 4 && c.sprintMin === 25 && c.breakMin === 5;
+    const arrival = classic ? 5 * 60 - (c.intro ? INTRO_SEC : 0) : OUTRO_SEC;
+    push('outro', arrival);
+  }
   segs.forEach((s, i) => { s.i = i; });
   return { segs, total: t };
 }

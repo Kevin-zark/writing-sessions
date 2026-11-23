@@ -48,6 +48,10 @@ export class Player {
       <div class="bar"><i></i></div>
       <div class="controls">
         <button class="ctl close" aria-label="End session">${ICON.close}</button>
+        <label class="route-scrubber">
+          <span>Journey <output>00:00</output> / ${fmtClock(this.tl.total)}</span>
+          <input type="range" min="0" max="${this.tl.total - 1}" step="1" value="0" aria-label="Journey position">
+        </label>
         <div class="ctl-row">
           <button class="ctl prev" aria-label="Previous section">${ICON.prev}</button>
           <button class="ctl back5" aria-label="Back 5 seconds">${ICON.back5}</button>
@@ -64,7 +68,7 @@ export class Player {
     const q = (s) => r.querySelector(s);
     this.el = { stage: q('.stage'), card: q('.card'), cardP: q('.card p'), bt: q('.breaktext'), btP: q('.breaktext p'),
       hud: q('.hud'), label: q('.hud-label'), scene: q('.hud-scene'), clock: q('.hud-clock'), bar: q('.bar i'), controls: q('.controls'),
-      play: q('.play'), prep: q('.prep'), confirm: q('.confirm'), badge: q('.speedbadge') };
+      scrub: q('.route-scrubber input'), elapsed: q('.route-scrubber output'), play: q('.play'), prep: q('.prep'), confirm: q('.confirm'), badge: q('.speedbadge') };
     if (this.speed !== 1) this.el.badge.textContent = '×' + this.speed;
     this.stage = this.v2 && this.m.render?.type === 'window'
       ? new WindowStage(this.el.stage, this.plan, this.base, { speed: this.speed, render: this.m.render, legs: this.plan.chain?.legs, getPos: () => this.clock.pos() })
@@ -75,12 +79,23 @@ export class Player {
     // controls: tap to reveal, auto-hide
     // tap = show controls; double-tap left/right third = -5 s / +5 s (like YouTube)
     this._onTap = (e) => {
-      if (e.target.closest('.ctl,.confirm')) return;
+      if (e.target.closest('.ctl,.confirm,.route-scrubber')) return;
       const now = Date.now(), w = r.clientWidth || 1, x = (e.clientX ?? w / 2) / w, side = x < 0.4 ? -1 : x > 0.6 ? 1 : 0;
       if (side && this._lastTap && now - this._lastTap.t < 320 && this._lastTap.side === side) { this._lastTap = null; this.seekBy(5 * side); return; }
       this._lastTap = { t: now, side }; this._showControls();
     };
     r.addEventListener('click', this._onTap);
+    this.el.scrub.oninput = () => {
+      this.scrubbing = true;
+      this._showControls();
+      this.el.elapsed.textContent = fmtClock(Number(this.el.scrub.value));
+    };
+    this.el.scrub.onchange = () => {
+      const target = Number(this.el.scrub.value);
+      this.scrubbing = false;
+      this.syncTo(target);
+    };
+    this.el.scrub.onpointercancel = () => { this.scrubbing = false; };
     q('.back5').onclick = () => this.seekBy(-5);
     q('.fwd5').onclick = () => this.seekBy(5);
     q('.play').onclick = () => this.paused ? this.resume() : this.pause();
@@ -159,6 +174,10 @@ export class Player {
     if (loc.done) return this._finish();
     if (loc.i !== this.curSeg) this._enterSegment(loc);
     const seg = loc.seg;
+    if (!this.scrubbing && !this._syncing) {
+      this.el.scrub.value = Math.floor(pos);
+      this.el.elapsed.textContent = fmtClock(Math.floor(pos));
+    }
     // HUD
     const showHud = seg.type === 'sprint' || seg.type === 'break';
     this.root.classList.toggle('hud-on', showHud);
@@ -207,11 +226,12 @@ export class Player {
   }
   async _enterLeg(lg) {
     this.curLeg = lg; const leg = this.m.legs[lg]; if (!leg) return;
+    const seeking = this._syncing;
     const pool = await this.audio.loadMusicPool(leg.id, leg.music, this.base);
     if (this.curLeg !== lg) return;
     const seg = this.tl.segs[this.curSeg];
     // Natural play: start the new leg's first song. A seek already placed the right offset — don't restart it.
-    if (!this._syncing) this.audio.setMusicPool(pool, { hard: true });
+    if (!seeking && !this._syncing && !this.closed && !this.finished) await this.syncTo(this.clock.pos());
     else { this.audio.tracks = pool; }
     this.audio.prunePools([leg.id, this.m.legs[lg + 1]?.id].filter(Boolean));
     this.events.push({ type: 'leg', leg: leg.id, pos: Math.round(this.clock.pos()), at: Date.now() });
@@ -226,6 +246,9 @@ export class Player {
 
   _enterSegment(loc) {
     this.curSeg = loc.i; const seg = loc.seg;
+    if (seg.type === 'outro' && this.v2 && Number.isInteger(this.m.legs.at(-1)?.arrivalMusicIndex) && !this._syncing) {
+      this.syncTo(this.clock.pos());
+    }
     this.events.push({ i: seg.i, type: seg.type, n: seg.n, pos: Math.round(this.clock.pos()), at: Date.now() });
     this.el.label.textContent = seg.type === 'sprint' ? `SPRINT ${seg.n}/${seg.of}` : seg.type === 'break' ? 'BREAK' : '';
     this.root.dataset.seg = seg.type;
@@ -243,9 +266,11 @@ export class Player {
     let cardLine = '', btLine = '';
     if (seg.type === 'intro' || seg.type === 'outro') {
       const lines = (seg.type === 'intro' ? this.m.intro?.lines : this.m.outro?.lines) || [];
-      const n = lines.length || 1, w = seg.dur / n, k = Math.min(n - 1, Math.floor(loc.elapsed / w));
-      const within = loc.elapsed - k * w;
-      if (lines.length && within > 1 && within < w - 1.5) cardLine = lines[k];
+      const closing = seg.type === 'outro' ? Math.min(45, seg.dur) : seg.dur;
+      const elapsed = loc.elapsed - (seg.dur - closing);
+      const n = lines.length || 1, w = closing / n, k = Math.min(n - 1, Math.floor(elapsed / w));
+      const within = elapsed - k * w;
+      if (k >= 0 && lines.length && within > 1 && within < w - 1.5) cardLine = lines[k];
       if (seg.type === 'outro' && loc.elapsed > seg.dur - 1.5 && lines.length) cardLine = lines[lines.length - 1];
     } else if (seg.type === 'break') {
       const bts = this.m.breakText || [];
@@ -301,16 +326,18 @@ export class Player {
   /** Set a single session time t; visuals, music and ambience all derive from it. */
   async syncTo(p) {
     const t = Math.max(0, Math.min(this.tl.total - 0.001, p));
+    const seekId = this.seekId = (this.seekId || 0) + 1;
     this._syncing = true;
     this.clock.seek(t);
     try {
       await this.audio.seekTo(t);
+      if (seekId !== this.seekId) return t;
       this._jumpStage();
       this._applyItem(itemAt(this.plan, t), true);
       // Let _tick call _enterSegment so the HUD label / dataset update; _syncing is still set so music is not advanced.
       this._tick();
     } finally {
-      this._syncing = false;
+      if (seekId === this.seekId) this._syncing = false;
     }
     return t;
   }

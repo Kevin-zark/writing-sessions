@@ -89,8 +89,11 @@ export class SessionAudio {
   async loadMusicPool(key, list, base) {
     this.pools = this.pools || {};
     if (this.pools[key]) return this.pools[key];
-    const pool = [];
-    await Promise.all((list || []).map(async (m) => { try { pool.push({ title: m.title, artist: m.artist || '', buf: await this._load(base + m.src), src: m.src }); } catch (e) { this.loadErrors = (this.loadErrors || []).concat(m.src); } }));
+    const decoded = await Promise.all((list || []).map(async m => {
+      try { return { ...m, buf: await this._load(base + m.src) }; }
+      catch { this.loadErrors = (this.loadErrors || []).concat(m.src); return null; }
+    }));
+    const pool = decoded.filter(Boolean);
     this.pools[key] = pool;
     return pool;
   }
@@ -170,12 +173,12 @@ export class SessionAudio {
     this.libRest = (async () => { for (const k of rest) await one(k); if (this.lastLayers) this.setLayers(this.lastLayers, 2); })();
     return Object.keys(this.lib).length;
   }
-  _addLayerNode(k) {
+  _addLayerNode(k, when = this.ctx.currentTime, offset = 0.05) {
     const c = this.ctx; if (!c || !this.layerNodes || this.layerNodes[k] || !this.lib[k]) return;
     const v = this.lib[k], s = c.createBufferSource(), g = c.createGain(); s.buffer = v.buf; s.loop = true; g.gain.value = 0;
     // trim 50 ms/30 ms off the loop ends: some decoders keep the MP3 encoder-delay silence, which would click once per loop
     const dur = v.buf.duration; if (dur > 2) { s.loopStart = 0.05; s.loopEnd = dur - 0.03; }
-    s.connect(g); g.connect(this.ambBus); s.start(0, 0.05 + (Object.keys(this.libDef).indexOf(k) * 7.3) % Math.max(1, dur - 0.1));
+    s.connect(g); g.connect(this.ambBus); s.start(when, offset);
     this.layerNodes[k] = { s, g, target: 0 };
   }
   /** Create looping nodes (gain 0) for every decoded layer; later layers are added as they finish decoding. */
@@ -190,6 +193,17 @@ export class SessionAudio {
     this.lastLayers = layers;
     const want = {}; (layers || []).forEach(l => { if (this.lib[l.layer]) want[l.layer] = (l.gain ?? 1) * (this.lib[l.layer].gain ?? 1); });
     const now = c.currentTime;
+    // Newly audible loops start at the same clip offset as a seek to this instant.
+    const pos = this.audioPos();
+    const periods = this.plan ? layersAt(pos, this.plan).periodStart : {};
+    for (const k of Object.keys(want)) {
+      const old = this.layerNodes[k];
+      if (old?.target > 0) continue;
+      if (old) { old.s.stop(now); old.s.disconnect(); old.g.disconnect(); delete this.layerNodes[k]; }
+      const duration = this.lib[k].buf.duration;
+      const offset = layerOffset(pos, periods[k] ?? pos, duration > 2 ? .05 : 0, duration > 2 ? duration - .03 : duration);
+      this._addLayerNode(k, now, offset);
+    }
     for (const [k, n] of Object.entries(this.layerNodes)) {
       const t = want[k] || 0; if (Math.abs(t - n.target) < 1e-4) continue;
       n.target = t; n.g.gain.cancelScheduledValues(now); n.g.gain.setValueAtTime(n.g.gain.value, now);
@@ -441,6 +455,7 @@ export class SessionAudio {
    */
   async seekTo(t, { play = true } = {}) {
     const c = this.ctx; if (!c || !this.tl) return t;
+    const seekId = this.seekId = (this.seekId || 0) + 1;
     t = Math.max(0, Math.min((this.tl.total || t) - 0.001, t));
     if (this._runs == null && this.plan && this.legs) this._runs = buildMusicRuns(this.tl, this.plan, this.legs);
 
@@ -465,6 +480,7 @@ export class SessionAudio {
     if (song && this.legs && this.themeBase) {
       const list = this.legs[song.leg]?.music;
       const pool = await this.loadMusicPool(song.legId, list, this.themeBase);
+      if (seekId !== this.seekId) return t;
       if (pool && pool.length) { this.tracks = pool; this.songIndex = song.index; }
     }
 
