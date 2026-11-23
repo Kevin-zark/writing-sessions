@@ -162,8 +162,8 @@ export class WindowRenderer {
   // same piece of bridge at the same time, including during a reverse seek.
   _bridge(offset) {
     const pane = this.pane;
-    const width = pane.w * 3.55; // the solid middle 40% must exceed the pane width
-    const left = pane.x + (pane.w - width) / 2 - offset * pane.w * 0.75;
+    const width = pane.w * 4.6; // the solid middle 31% spans the pane throughout the scene swap
+    const left = pane.x + (pane.w - width) / 2 - offset * pane.w * 0.84;
     if (left >= pane.x + pane.w || left + width <= pane.x) return;
     const bridge = this._img(this.cfg.bridge);
     if (!bridge?.ok) return;
