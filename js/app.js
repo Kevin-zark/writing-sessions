@@ -1,4 +1,4 @@
-import { PRESETS, DEFAULT_SETTINGS, clampCfg, buildTimeline, fmtTotal, INTRO_SEC, OUTRO_SEC } from './engine.js';
+import { PRESETS, DEFAULT_SETTINGS, clampCfg, buildTimeline, fmtTotal, INTRO_SEC } from './engine.js';
 import { Player } from './player.js';
 import { SessionAudio } from './audio.js';
 import { buildRequest, submitRequest, loadRequests, saveRequests, mailtoUrl } from './request.js';
@@ -93,7 +93,7 @@ function renderSettings() {
     </section>
     <section><h3>Intro &amp; outro</h3>
       <label class="switch"><span>Intro (~${INTRO_SEC}s welcome)</span><input type="checkbox" id="f-intro" ${settings.intro ? 'checked' : ''}></label>
-      <label class="switch"><span>Outro (~${OUTRO_SEC}s wrap-up)</span><input type="checkbox" id="f-outro" ${settings.outro ? 'checked' : ''}></label>
+      <label class="switch"><span>Arrival &amp; closing</span><input type="checkbox" id="f-outro" ${settings.outro ? 'checked' : ''}></label>
     </section>
     <section><h3>Sound</h3>
       <label class="slider"><span>Music</span><input type="range" id="f-musicVol" min="0" max="1" step="0.05" value="${settings.musicVol}"></label>

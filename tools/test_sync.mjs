@@ -67,5 +67,15 @@ const sp2 = eight.segs.find(s => s.type === 'sprint' && s.n === 2);
 const m8 = musicAt(sp2.start + 3, runs8, durs);
 check('8-sprint session: sprint 2 is Letters B (same city leg)', m8.primary?.title === 'Letters by Lamplight (II)', m8.primary);
 
+check('Classic fits the two-hour container', tl.total === 7200 && tl.segs.filter(s => s.type === 'sprint').every(s => s.dur === 1500));
+check('Every second has a scene', plan.items[0].start === 0 && plan.items.at(-1).end === tl.total &&
+  plan.items.every((item, i) => item.end > item.start && (!i || Math.abs(item.start - plan.items[i - 1].end) < 1e-6)));
+const destination = tl.segs.at(-1);
+check('Final theme starts at arrival', runs.at(-1).audioStart === destination.start && runs.at(-1).song.title === 'Arrival at Hollowmere');
+for (const item of plan.items.filter(item => item.leg === 1)) {
+  check('Lake weather and sound agree for ' + item.id,
+    Boolean(item.scene.weather.rain) === item.ambience.some(layer => layer.layer === 'rain_glass'));
+}
+
 if (fail) { console.log(fail, 'FAILED'); process.exit(1); }
 console.log('all sync tests passed');

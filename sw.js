@@ -2,7 +2,7 @@
 // shadowed by stale JS or a stale manifest (v3 and older served the old shell first, which paired old player
 // code with the new schema-2 manifest => no video chain and no music). Media (mp4/mp3) is deliberately NOT
 // intercepted: iOS needs HTTP Range responses for <video>/<audio>, which Cache API replays badly.
-const VER = 'ws-v10';
+const VER = 'ws-v11';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'css/app.css', 'js/app.js', 'js/engine.js', 'js/audio.js', 'js/scenes.js',
   'js/player.js', 'js/window.js', 'js/journey.js', 'js/sync.js', 'js/request.js', 'js/config.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'themes/index.json', 'themes/dark-academia-train/manifest.json',
@@ -15,7 +15,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const ks = await caches.keys();
     const legacy = ks.some(k => /^ws-v[0-3]$/.test(k));      // pre-v4 pages cannot self-update: reload them once
-    await Promise.all(ks.filter(k => k !== VER).map(k => caches.delete(k)));
+    await Promise.all(ks.filter(k => /^ws-v\d+$/.test(k) && k !== VER).map(k => caches.delete(k)));
     await self.clients.claim();
     if (legacy) for (const c of await self.clients.matchAll({ type: 'window' })) { try { await c.navigate(c.url); } catch (err) {} }
     for (const c of await self.clients.matchAll({ type: 'window' })) c.postMessage({ type: 'sw-updated', ver: VER });

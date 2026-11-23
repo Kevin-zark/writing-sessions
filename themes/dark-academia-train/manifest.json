@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 6,
+ "version": 7,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -452,6 +452,24 @@
      }
     },
     {
+     "id": "castle-green",
+     "title": "The castle green",
+     "backdrop": "zones/city/castle-green.webp",
+     "mid": "zones/city/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "bells",
+       "gain": 0.2
+      }
+     ]
+    },
+    {
      "id": "c1",
      "title": "Rooftops in the fog · the cathedral",
      "backdrop": "zones/city/vista-1.webp",
@@ -480,7 +498,7 @@
     {
      "id": "c2",
      "title": "The old clock tower",
-     "backdrop": "zones/city/vista-2.webp",
+     "backdrop": "zones/city/b2.jpg",
      "mid": "zones/city/m2.webp",
      "weather": {
       "rain": 0.18
@@ -504,9 +522,27 @@
      "panBackdrop": true
     },
     {
+     "id": "public-park",
+     "title": "The public gardens",
+     "backdrop": "zones/city/public-park.webp",
+     "mid": "zones/lake/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.18
+      }
+     ]
+    },
+    {
      "id": "c3",
      "title": "The iron bridge",
-     "backdrop": "zones/city/vista-2.webp",
+     "backdrop": "zones/city/docks-bg.webp",
      "mid": "zones/city/m3.webp",
      "weather": {
       "rain": 0.22
@@ -532,6 +568,42 @@
      },
      "paintedStrips": true,
      "panBackdrop": true
+    },
+    {
+     "id": "covered-market",
+     "title": "The covered market",
+     "backdrop": "zones/city/covered-market.webp",
+     "mid": "zones/city/verge.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0.13,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.8
+      }
+     ]
+    },
+    {
+     "id": "back-lanes",
+     "title": "The back lanes",
+     "backdrop": "zones/city/back-lanes.webp",
+     "mid": "zones/city/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0.18,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "city",
+       "gain": 0.35
+      }
+     ]
     },
     {
      "id": "c4",
@@ -618,17 +690,43 @@
      "panBackdrop": true
     },
     {
+     "id": "rain-squall",
+     "title": "Rain crossing Wrenmere",
+     "backdrop": "zones/lake/rain-squall.webp",
+     "mid": "zones/lake/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0.97,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "rain_glass",
+       "gain": 0.9
+      },
+      {
+       "layer": "lake_lap",
+       "gain": 0.35
+      }
+     ]
+    },
+    {
      "id": "l2",
      "title": "The open lake · the ruined abbey",
      "backdrop": "zones/lake/vista-2.webp",
      "mid": "zones/lake/m2.webp",
      "weather": {
-      "rain": 0.8
+      "rain": 0
      },
      "ambience": [
       {
        "layer": "lake_lap",
        "gain": 0.35
+      },
+      {
+       "layer": "rain_glass",
+       "gain": 0
       }
      ],
      "landmark": {
@@ -646,7 +744,7 @@
     {
      "id": "l3",
      "title": "The old boathouse",
-     "backdrop": "zones/lake/vista-2.webp",
+     "backdrop": "zones/lake/boathouse-shore.webp",
      "mid": "zones/lake/m3.webp",
      "weather": {
       "rain": 0.85
@@ -657,22 +755,13 @@
        "gain": 0.7
       }
      ],
-     "landmark": {
-      "src": "zones/lake/lm3.webp",
-      "w": 584,
-      "h": 597,
-      "dur": 26,
-      "at": 0.45,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
     {
      "id": "l4",
      "title": "The stone arch · the far shore",
-     "backdrop": "zones/lake/vista-3.webp",
+     "backdrop": "zones/lake/stone-arch.webp",
      "mid": "zones/lake/m3.webp",
      "weather": {
       "rain": 0.6
@@ -687,17 +776,34 @@
        "gain": 0.3
       }
      ],
-     "landmark": {
-      "src": "zones/lake/lm4.webp",
-      "w": 997,
-      "h": 527,
-      "dur": 26,
-      "at": 0.6,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
+    },
+    {
+     "id": "forest-edge",
+     "title": "The sheltered forest shore",
+     "backdrop": "zones/lake/forest-edge.webp",
+     "mid": "zones/lake/m3.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0
+     },
+     "ambience": [
+      {
+       "layer": "rain_glass",
+       "gain": 0
+      },
+      {
+       "layer": "forest_wind",
+       "gain": 0.4
+      },
+      {
+       "layer": "lake_lap",
+       "gain": 0.35
+      }
+     ]
     }
    ]
   },
@@ -758,9 +864,27 @@
      "panBackdrop": true
     },
     {
+     "id": "pine-cutting",
+     "title": "The pine cutting",
+     "backdrop": "zones/forest/pine-cutting.webp",
+     "mid": "zones/forest/m2.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0.09
+     },
+     "ambience": [
+      {
+       "layer": "forest_wind",
+       "gain": 0.45
+      }
+     ]
+    },
+    {
      "id": "f2",
      "title": "The frozen waterfall",
-     "backdrop": "zones/forest/vista-2.webp",
+     "backdrop": "zones/forest/ice-falls.webp",
      "mid": "zones/forest/m2.webp",
      "weather": {
       "snow": 0.7
@@ -771,36 +895,18 @@
        "gain": 0.6
       }
      ],
-     "landmark": {
-      "src": "zones/forest/lm3.webp",
-      "w": 673,
-      "h": 561,
-      "dur": 26,
-      "at": 0.55,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
     {
      "id": "f3",
      "title": "The woodcutter's cabin",
-     "backdrop": "zones/forest/vista-2.webp",
+     "backdrop": "zones/forest/woodcutters-clearing.webp",
      "mid": "zones/forest/m3.webp",
      "weather": {
       "snow": 0.75
      },
      "ambience": [],
-     "landmark": {
-      "src": "zones/forest/lm2.webp",
-      "w": 858,
-      "h": 543,
-      "dur": 26,
-      "at": 0.45,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
@@ -829,6 +935,24 @@
      },
      "paintedStrips": true,
      "panBackdrop": true
+    },
+    {
+     "id": "upland-firs",
+     "title": "Firs at the snow line",
+     "backdrop": "zones/forest/upland-firs.webp",
+     "mid": "zones/forest/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0.52
+     },
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.48
+      }
+     ]
     }
    ]
   },
@@ -974,6 +1098,24 @@
      "panBackdrop": true
     },
     {
+     "id": "ridge-clearing",
+     "title": "The storm breaks",
+     "backdrop": "zones/mountains/ridge-clearing.webp",
+     "mid": "zones/mountains/m2.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0.3
+     },
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.7
+      }
+     ]
+    },
+    {
      "id": "m4",
      "title": "Hollowmere in the valley · the observatory",
      "backdrop": "zones/mountains/vista-3.webp",
@@ -1002,8 +1144,53 @@
      },
      "paintedStrips": true,
      "panBackdrop": true
+    },
+    {
+     "id": "college-road",
+     "title": "College Road at dusk",
+     "backdrop": "zones/mountains/college-road.webp",
+     "mid": "zones/forest/m1.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0.17
+     },
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.18
+      },
+      {
+       "layer": "bells",
+       "gain": 0.22
+      }
+     ]
+    },
+    {
+     "id": "lamplit-cottages",
+     "title": "The lamplit university village",
+     "backdrop": "zones/mountains/lamplit-cottages.webp",
+     "mid": "zones/city/verge.webp",
+     "paintedStrips": true,
+     "panBackdrop": true,
+     "weather": {
+      "rain": 0,
+      "snow": 0.07
+     },
+     "ambience": [
+      {
+       "layer": "wind_high",
+       "gain": 0.12
+      },
+      {
+       "layer": "bells",
+       "gain": 0.3
+      }
+     ]
     }
-   ]
+   ],
+   "arrivalMusicIndex": 2
   }
  ],
  "credits": [

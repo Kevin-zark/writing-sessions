@@ -61,6 +61,13 @@ export function buildMusicRuns(tl, plan, legs) {
     const silentUntil = (next && next.type === 'break') ? next.end : audibleEnd;
     runs.push({ audioStart, audibleEnd, silentUntil, sprintN: sp.n, song: songOf(legs, curLeg, songIndex) });
   });
+  const arrival = segs.find(seg => seg.type === 'outro');
+  const destinationLeg = legs.length - 1;
+  const arrivalIndex = legs[destinationLeg]?.arrivalMusicIndex;
+  if (arrival && Number.isInteger(arrivalIndex)) {
+    runs.push({ audioStart: arrival.start, audibleEnd: tl.total, silentUntil: tl.total,
+      sprintN: sprints.length, song: songOf(legs, destinationLeg, arrivalIndex) });
+  }
   return runs;
 }
 

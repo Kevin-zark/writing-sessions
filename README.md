@@ -13,8 +13,8 @@ Debug query params: `?speed=60` runs the session clock 60× faster (chimes/fades
 In the running page, `window.__ws` (player) and `window.__app` expose state (`__ws.events`, `__ws.stage.log`, `__app.audio.chimeLog`).
 
 ## Session model (`js/engine.js`)
-`intro (55 s, optional) → sprint 1 → break 1 → … → sprint N → outro (45 s, optional)` — **no break after the last sprint**.
-Presets: **Classic** 4×25/5 (≈1h57m with intro/outro), **30 / 2** (2×30, 2 min breaks), **60 / 10** (2×60, 10 min breaks), **Custom**
+`intro (55 s, optional) → sprint 1 → break 1 → … → sprint N → arrival / outro (optional)` — **no break after the last sprint**.
+Presets: **Classic** 4×25/5 (2h with arrival enabled; the default includes a 55-second welcome and 4:05 at Hollowmere), **30 / 2** (2×30, 2 min breaks), **60 / 10** (2×60, 10 min breaks), **Custom**
 (sprint minutes 1–180, break minutes 0–60, sprints 1–12). Settings (incl. volumes, intro/outro, delivery) persist in `localStorage` (`ws.settings.v1`).
 Overlay: lower-left `SPRINT n/N` / `BREAK` over a large `MM:SS`, thin progress bar along the bottom (current segment), welcome/outro cards, gentle break text.
 

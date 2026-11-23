@@ -275,7 +275,7 @@ export class WindowStage {
       try { const pp = v.play(); if (pp && pp.catch) pp.catch(() => {}); } catch (e) {}   // iOS: a paused hidden video never loads without a nudge
     });
   }
-  async _show(n, { instant = false } = {}) {
+  async _show(n, { instant = false, pos = null } = {}) {
     const it = this.plan.items[n]; if (!it) return;
     const my = ++this.token, C = this.cv, S = this.st, was = this.top;
     const prevCruise = this.plan.items[this.cur]?.kind === 'cruise';
@@ -299,7 +299,7 @@ export class WindowStage {
       if (S.item !== n) this._prepStation(n); else if (!S.ready && S.prep) await S.prep;
       if (S.item === n && !S.ready && S.prep) await S.prep;
       if (my !== this.token) return;
-      if (S.ready) { S.mode = 'video'; S.video.classList.add('on'); S.img.classList.remove('kb'); S.video.currentTime = 0; const p = S.video.play(); if (p?.catch) p.catch(() => {}); }
+      if (S.ready) { S.mode = 'video'; S.video.classList.add('on'); S.img.classList.remove('kb'); S.video.currentTime = ((pos ?? this.getPos()) - it.start + S.video.duration) % S.video.duration || 0; const p = S.video.play(); if (p?.catch) p.catch(() => {}); }
       else { S.mode = 'kenburns'; S.video.removeAttribute('src'); try { S.video.load(); } catch (e) {} void S.img.offsetWidth; S.img.classList.add('kb'); }
       this.top = 'video';
       reveal(S, C, () => { if (this.top === 'video') this.win.stop(); });

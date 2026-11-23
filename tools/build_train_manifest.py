@@ -2,6 +2,7 @@
 """Builds themes/dark-academia-train/manifest.json (schema 3: procedural window) from the shot list below.
 Station loop durations are read from the encoded files."""
 import json, subprocess, os
+from hollowmere_route import extend_route
 T = os.path.join(os.path.dirname(__file__), '..', 'themes', 'dark-academia-train')
 def dur(p): return round(float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', os.path.join(T, p)], capture_output=True, text=True).stdout), 3)
 A = 'fullslopstudios (Suno)'
@@ -63,7 +64,7 @@ m = {
  'description': 'A candlelit compartment on a two-hour journey: a misty city, a rain-grey lake, a snow-hushed forest and the high mountain passes, arriving at Hollowmere University.',
  'cover': 'stills/cover.jpg', 'accent': '#d9b26f',
  'status': 'published', 'owner': 'kevin', 'origin': {'type': 'owner', 'requestId': None, 'requestedBy': None},
- 'createdAt': '2026-11-21', 'version': 3,
+ 'createdAt': '2026-11-21', 'version': 7,
  'designedFor': {'sprintMin': 25, 'breakMin': 5, 'sprints': 4, 'intro': True, 'outro': True},
  'render': {'type': 'window', 'sway': False, 'tunnelWall': 'zones/mountains/tunnel-masonry.webp', 'crossings': {'bridge': 'zones/city/dock-bridge.webp', 'gardenWall': 'zones/city/garden-wall.webp'}, 'objectPosition': '50% 50%', 'size': [1280, 720], 'frame': {'src': 'frame/overlay.png', 'pane': json.load(open(os.path.join(T, 'frame', 'pane.json')))}},
  'style': {'camera': 'Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame', 'interior': 'Dark mahogany panels, bottle-green velvet curtains tied back at both edges, brass sconce upper left, leather book + teacup on the ledge',
@@ -89,5 +90,6 @@ for li, g in enumerate(LEGS):
     m['legs'].append({'id': g['id'], 'title': g['title'], 'from': a, 'to': b, 'ambience': g['amb'], 'music': g['music'], 'speed': g['speed'],
                       'near': f'zones/{z}/verge.webp', 'fog': g['fog'], 'segments': segs})
 m['credits'] = [{'kind': 'music', 'title': t['title'], 'author': A, 'license': "Generated in Kevin's Suno Pro account (commercial use per Suno Pro terms)"} for l in m['legs'] for t in l['music']] + credits
+extend_route(m)
 json.dump(m, open(os.path.join(T, 'manifest.json'), 'w'), indent=1, ensure_ascii=False)
 print('manifest written')
