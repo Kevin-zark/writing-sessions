@@ -31,6 +31,7 @@ def extend_route(manifest):
                 view['backdrop'] = 'zones/city/docks-bg.webp'
 
     refine_platforms_and_terrain(manifest)
+    integrate_landmarks(manifest)
 
 
 def refine_platforms_and_terrain(manifest):
@@ -50,6 +51,19 @@ def refine_platforms_and_terrain(manifest):
         view.pop('mid', None)
         if view['id'] in ('m4', 'college-road', 'lamplit-cottages'):
             view['near'] = forest['near']
+
+
+def integrate_landmarks(manifest):
+    manifest['version'] = 9
+    manifest['render']['glassReflection'] = 'frame/sconce-reflection.webp'
+    plates = {'c2': 'clocktower-roofs', 'l2': 'abbey-shore',
+              'f4': 'chapel-wood', 'm1': 'ravine-viaduct', 'm3': 'monastery-ledge'}
+    for leg in manifest['legs']:
+        for view in leg['segments']:
+            if view['id'] in plates:
+                view['backdrop'] = f"zones/{leg['id']}/{plates[view['id']]}.webp"
+                view.pop('landmark', None)
+                view.pop('mid', None)
 
 
 VIEWS = [

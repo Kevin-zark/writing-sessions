@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 8,
+ "version": 9,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -42,7 +42,8 @@
     "h": 482
    }
   },
-  "tunnelWall": "zones/mountains/tunnel-masonry.webp"
+  "tunnelWall": "zones/mountains/tunnel-masonry.webp",
+  "glassReflection": "frame/sconce-reflection.webp"
  },
  "style": {
   "camera": "Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame",
@@ -468,8 +469,7 @@
     {
      "id": "c2",
      "title": "The old clock tower",
-     "backdrop": "zones/city/b2.jpg",
-     "mid": "zones/city/m2.webp",
+     "backdrop": "zones/city/clocktower-roofs.webp",
      "weather": {
       "rain": 0.18
      },
@@ -479,15 +479,6 @@
        "gain": 0.4
       }
      ],
-     "landmark": {
-      "src": "zones/city/lm2.webp",
-      "w": 368,
-      "h": 691,
-      "dur": 26,
-      "at": 0.6,
-      "height": 0.58,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
@@ -684,8 +675,7 @@
     {
      "id": "l2",
      "title": "The open lake · the ruined abbey",
-     "backdrop": "zones/lake/vista-2.webp",
-     "mid": "zones/lake/m2.webp",
+     "backdrop": "zones/lake/abbey-shore.webp",
      "weather": {
       "rain": 0
      },
@@ -699,15 +689,6 @@
        "gain": 0
       }
      ],
-     "landmark": {
-      "src": "zones/lake/lm2.webp",
-      "w": 702,
-      "h": 459,
-      "dur": 26,
-      "at": 0.6,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
@@ -883,8 +864,7 @@
     {
      "id": "f4",
      "title": "The chapel · the mountains rise",
-     "backdrop": "zones/forest/vista-3.webp",
-     "mid": "zones/forest/m3.webp",
+     "backdrop": "zones/forest/chapel-wood.webp",
      "weather": {
       "snow": 0.55
      },
@@ -894,15 +874,6 @@
        "gain": 0.35
       }
      ],
-     "landmark": {
-      "src": "zones/forest/lm4.webp",
-      "w": 639,
-      "h": 609,
-      "dur": 26,
-      "at": 0.6,
-      "height": 0.5,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
@@ -974,7 +945,7 @@
     {
      "id": "m1",
      "title": "The climb · the viaduct",
-     "backdrop": "zones/mountains/vista-1.webp",
+     "backdrop": "zones/mountains/ravine-viaduct.webp",
      "weather": {
       "snow": 0.4
      },
@@ -984,15 +955,6 @@
        "gain": 0.9
       }
      ],
-     "landmark": {
-      "src": "zones/mountains/lm1.webp",
-      "w": 975,
-      "h": 452,
-      "dur": 26,
-      "at": 0.5,
-      "height": 0.58,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },
@@ -1034,7 +996,7 @@
     {
      "id": "m3",
      "title": "Blizzard on the pass · the monastery",
-     "backdrop": "zones/mountains/vista-2.webp",
+     "backdrop": "zones/mountains/monastery-ledge.webp",
      "weather": {
       "snow": 0.95
      },
@@ -1052,15 +1014,6 @@
        "gain": 0.3
       }
      ],
-     "landmark": {
-      "src": "zones/mountains/lm3.webp",
-      "w": 598,
-      "h": 539,
-      "dur": 26,
-      "at": 0.5,
-      "height": 0.58,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true
     },

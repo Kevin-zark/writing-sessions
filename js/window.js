@@ -80,7 +80,7 @@ export class WindowRenderer {
   _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, s.landmark?.type === 'tunnel' && this.cfg.tunnelWall, this.crossings[s.exitCut]].filter(Boolean); }
   /** Which cruise item is current; preloads its assets and the next few, frees the rest. */
   setItem(idx) {
-    this.idx = idx; const items = this.plan.items, want = new Set([this.cfg.frame?.src, this.frame?.src]);
+    this.idx = idx; const items = this.plan.items, want = new Set([this.frame.src, this.cfg.glassReflection]);
     const seen = new Set(); for (let i = Math.max(0, idx - 1); i < items.length && seen.size < 3; i++) { if (items[i].kind !== "cruise") continue; seen.add(items[i].scene); this._assetsOf(items[i]).forEach(a => want.add(a)); }
     this._assetsOf(items[idx - 1]).forEach(a => want.add(a));
     want.forEach(a => a && this._img(a));
@@ -190,10 +190,17 @@ export class WindowRenderer {
     if (lm && lm.type === 'tunnel') this._tunnel(it, lm, pos, F);
     if (arriving) this._crossing(arriving, pos - it.start);
     if (departing) this._crossing(departing, pos - it.end);
-    // light: slow cloud drift + glass vignette
-    c.fillStyle = `rgba(0,0,0,${0.05 + 0.05 * Math.sin(pos * 0.047)})`; c.fillRect(P.x, P.y, P.w, P.h);
+    // Exterior exposure changes slowly as patches of cloud pass.
+    c.fillStyle = `rgba(0,0,0,${0.033 + 0.011 * Math.sin(pos * 0.031) + 0.008 * Math.sin(pos * 0.073)})`; c.fillRect(P.x, P.y, P.w, P.h);
     const g = c.createRadialGradient(P.x + P.w / 2, P.y + P.h / 2, P.h * 0.35, P.x + P.w / 2, P.y + P.h / 2, P.w * 0.62);
     g.addColorStop(0, 'rgba(8,10,14,0)'); g.addColorStop(1, 'rgba(8,10,14,0.42)'); c.fillStyle = g; c.fillRect(P.x, P.y, P.w, P.h);
+    const reflection = this._img(this.cfg.glassReflection);
+    if (reflection?.ok) {
+      // Screen blending lets the lamp register in dark masonry and recede in bright sky.
+      c.globalCompositeOperation = 'screen';
+      c.globalAlpha = 0.085;
+      c.drawImage(reflection.img, P.x + P.w * .073, P.y + P.h * .095, P.h * .20, P.h * .233);
+    }
     c.restore();
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
   }
@@ -223,50 +230,72 @@ export class WindowRenderer {
   }
   _tunnel(it, lm, pos, F) {
     const win = this._landmarkWindow(it); if (!win) return; const t = pos - win[0], dur = win[1] - win[0]; if (t < -1 || t > dur + 1) return;
-    const d = smooth(t / 3) * smooth((dur - t) / 3), c = this.c, P = this.pane;
+    const c = this.c, P = this.pane;
+    // A fixed portal sweeps across the window in the same direction as trackside scenery.
+    const travel = 235 * P.h / 720;
+    const left = Math.max(0, P.w - (F - this.dist(win[0])) * travel);
+    const right = Math.min(P.w, (this.dist(win[1]) - F) * travel);
+    if (right <= left) return;
+    c.save();
+    c.beginPath(); c.rect(P.x + left, P.y, right - left, P.h); c.clip();
     const wall = this._img(this.cfg.tunnelWall);
-    if (wall?.ok) this._tile(wall, 235, F, 0, d, 'source-over');
-    c.fillStyle = `rgba(6,9,12,${(wall?.ok ? .76 : .97) * d})`;
+    if (wall?.ok) this._tile(wall, 235, F, 0, 1, 'source-over');
+    c.fillStyle = wall?.ok ? 'rgba(6,9,12,.67)' : '#0f1417';
     c.fillRect(P.x, P.y, P.w, P.h);
-    if (d < .01) return;
-    const radius = P.h * .32, period = P.w * 1.32;
+    const radius = P.h * .32, period = P.w + radius * 2;
     const x = P.x + P.w + radius - mod(F * 235 * P.h / 720, period);
     const y = P.y + P.h * .43;
     const glow = c.createRadialGradient(x, y, 0, x, y, radius);
-    glow.addColorStop(0, `rgba(224,158,77,${.32 * d})`);
+    glow.addColorStop(0, 'rgba(224,158,77,.32)');
     glow.addColorStop(1, 'rgba(224,158,77,0)');
     c.fillStyle = glow; c.fillRect(x-radius,y-radius,radius*2,radius*2);
-    c.fillStyle = `rgba(22,22,20,${d})`;
+    c.fillStyle = '#161614';
     c.fillRect(x-5,y-9,10,18);
-    c.fillStyle = `rgba(246,194,114,${.90*d})`;
+    c.fillStyle = 'rgba(246,194,114,.90)';
     c.fillRect(x-2.5,y-6,5,11);
+    c.restore();
   }
   _weather(S, pv, a, pos, F, sp) {
     const c = this.c, P = this.pane, R = P.h / 720;
     const dens = (k) => { const cur = S.weather?.[k] || 0, old = pv ? (pv.weather?.[k] || 0) : cur; return old + (cur - old) * a; };
     const rain = dens('rain'), snow = dens('snow');
     if (rain > 0.01) {
-      const N = Math.round(150 * rain), spd = Math.max(0.25, sp);
-      c.strokeStyle = 'rgba(205,220,238,0.33)'; c.lineWidth = Math.max(1, R * 1.1); c.beginPath();
-      for (let i = 0; i < N; i++) {
-        const sy = (520 + 420 * hash(i, 2)) * R, len = (10 + 20 * hash(i, 3)) * R, slant = (0.22 + 0.5 * spd * 0.35) * len;
-        const x = mod(hash(i, 1) * (P.w + 80) - (F * 34 + pos * 6) * R, P.w + 80) - 40, y = mod(hash(i, 4) * (P.h + 60) + pos * sy, P.h + 60) - 30;
-        c.moveTo(P.x + x, P.y + y); c.lineTo(P.x + x - slant, P.y + y + len);
+      // Airborne streaks share the direction of the passing scenery. Near drops
+      // cross the view faster and leave a longer exposure than distant drizzle.
+      for (let depth = 0; depth < 3; depth++) {
+        c.strokeStyle = `rgba(202,216,224,${.10 + depth * .045})`;
+        c.lineWidth = (.65 + depth * .32) * R;
+        c.beginPath();
+        for (let i = depth; i < Math.round(170 * rain); i += 3) {
+          const vy = (420 + depth * 140 + hash(i, 2) * 110) * R;
+          const vx = (130 + depth * 85) * R;
+          const x = P.x + mod(hash(i, 1) * P.w - F * vx - pos * 24 * R, P.w + 32) - 16;
+          const y = P.y + mod(hash(i, 4) * P.h + pos * vy, P.h + 40) - 20;
+          c.moveTo(x, y); c.lineTo(x - (vx * sp + 24 * R) / 58, y + vy / 58);
+        }
+        c.stroke();
       }
-      c.stroke();
-      // slow beads running down the glass
-      c.fillStyle = 'rgba(220,232,245,0.20)'; c.strokeStyle = 'rgba(220,232,245,0.10)'; c.lineWidth = R;
-      for (let i = 0; i < Math.round(16 * rain); i++) {
-        const bx = P.x + hash(i, 7) * P.w, by = P.y + mod(hash(i, 8) * P.h + pos * (7 + 9 * hash(i, 9)) * R, P.h), r = (1.6 + 2.2 * hash(i, 5)) * R;
-        c.beginPath(); c.moveTo(bx, by - 26 * R * hash(i, 6)); c.lineTo(bx, by); c.stroke(); c.beginPath(); c.ellipse(bx, by, r * 0.8, r * 1.2, 0, 0, 7); c.fill();
+      // Water pinned to the glass collects, slides, then pauses at a fresh spot.
+      for (let i = 0; i < Math.round(23 * rain); i++) {
+        const cycle = pos / (9 + 9 * hash(i, 9)) + hash(i, 6);
+        const step = Math.floor(cycle);
+        const fraction = cycle - step;
+        const run = step + smooth((fraction - .55) / .34);
+        const y = P.y + mod(hash(i, 8) * P.h + run * (14 + 32 * hash(i, 3)) * R, P.h);
+        const x = P.x + hash(i, 7) * P.w + R * Math.sin(run * .87 + i);
+        const radius = (.8 + 1.7 * hash(i, 5)) * R;
+        c.fillStyle = 'rgba(19,31,39,.23)';
+        c.beginPath(); c.ellipse(x, y, radius, radius * 1.35, 0, 0, 7); c.fill();
+        c.fillStyle = 'rgba(233,239,238,.52)';
+        c.beginPath(); c.arc(x - radius * .21, y + radius * .46, radius * .45, 0, 7); c.fill();
       }
     }
     if (snow > 0.01) {
-      const N = Math.round(130 * snow); c.fillStyle = 'rgba(244,248,255,0.85)';
+      const N = Math.round(175 * snow); c.fillStyle = 'rgba(244,248,255,0.85)';
       for (let i = 0; i < N; i++) {
-        const z = hash(i, 11), r = (0.9 + 2.4 * z) * R, vx = (30 + 150 * z) * R, vy = (22 + 40 * z) * R;
-        const x = mod(hash(i, 12) * (P.w + 60) - (F * .8 + pos * .2) * vx + Math.sin(pos * 0.7 + i) * 8 * R, P.w + 60) - 30, y = mod(hash(i, 13) * (P.h + 40) + pos * vy, P.h + 40) - 20;
-        c.globalAlpha = 0.35 + 0.55 * z; c.beginPath(); c.arc(P.x + x, P.y + y, r, 0, 7); c.fill();
+        const z = hash(i, 11), r = (0.55 + 1.7 * z) * R, vx = (30 + 150 * z) * R, vy = (22 + 40 * z) * R;
+        const x = mod(hash(i, 12) * (P.w + 60) - (F * .8 + pos * .2) * vx + (Math.sin(pos * .33 + i) * 6 + Math.sin(pos * .18) * (12 + 35 * z) * snow) * R, P.w + 60) - 30, y = mod(hash(i, 13) * (P.h + 40) + pos * vy, P.h + 40) - 20;
+        c.globalAlpha = 0.35 + 0.55 * z; c.beginPath(); c.ellipse(P.x + x, P.y + y, r * (1 + z * snow), r * .70, -.42, 0, 7); c.fill();
       }
       c.globalAlpha = 1;
     }
