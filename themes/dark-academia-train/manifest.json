@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 12,
+ "version": 13,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -25,9 +25,9 @@
   "type": "window",
   "sway": false,
   "crossings": {
-   "bridge": "zones/city/dock-bridge.webp",
-   "gardenWall": "zones/city/garden-wall.webp",
-   "baileyWall": "zones/city/bailey-wall.webp"
+   "bridge": "zones/city/dock-bridge-pass.webp",
+   "gardenWall": "zones/city/garden-wall-pass.webp",
+   "baileyWall": "zones/city/bailey-wall-pass.webp"
   },
   "objectPosition": "50% 50%",
   "size": [
@@ -51,6 +51,13 @@
    "s2": "stills/approach-s2.webp",
    "s3": "stills/approach-s3.webp",
    "s4": "stills/approach-s4.webp"
+  },
+  "stationWalls": {
+   "s0": "stills/pass-s0.webp",
+   "s1": "stills/pass-s1.webp",
+   "s2": "stills/pass-s2.webp",
+   "s3": "stills/pass-s3.webp",
+   "s4": "stills/pass-s4.webp"
   }
  },
  "style": {
@@ -397,8 +404,7 @@
     {
      "id": "industrial-docks",
      "title": "Ravensgate industrial docks",
-     "backdrop": "zones/city/docks-bg.webp",
-     "mid": "zones/city/docks-mid.webp",
+     "backdrop": "zones/city/industrial-docks-street.webp",
      "near": "zones/city/docks-fg.webp",
      "paintedStrips": true,
      "exitCut": "bridge",
@@ -407,27 +413,27 @@
       "color": "#879ba3",
       "far": 0.46,
       "near": 0.3
-     }
+     },
+     "panBackdrop": true
     },
     {
      "id": "victorian-terraces",
      "exitCut": "gardenWall",
      "title": "Victorian terraces",
-     "backdrop": "zones/city/terraces-bg.webp",
-     "mid": "zones/city/terraces-mid.webp",
+     "backdrop": "zones/city/victorian-terraces-street.webp",
      "near": "zones/city/terraces-fg.webp",
      "paintedStrips": true,
      "fog": {
       "color": "#9b9d9b",
       "far": 0.4,
       "near": 0.16
-     }
+     },
+     "panBackdrop": true
     },
     {
      "id": "wealthy-quarter",
      "title": "The wealthy quarter",
-     "backdrop": "zones/city/rich-skyline.webp",
-     "mid": "zones/city/rich-houses.webp",
+     "backdrop": "zones/city/wealthy-quarter-street.webp",
      "near": "zones/city/rich-gardens.webp",
      "paintedStrips": true,
      "fog": {
@@ -435,7 +441,8 @@
       "far": 0.45,
       "near": 0.19
      },
-     "exitCut": "baileyWall"
+     "exitCut": "baileyWall",
+     "panBackdrop": true
     },
     {
      "id": "castle-green",

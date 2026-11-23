@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#10191a">
+<title>Leaving Ravensgate · Writing Sessions</title>
+<style>
+* {box-sizing:border-box} body {margin:0;background:#10191a;color:#ecebe5;font-family:Georgia,serif}
+main {width:min(100%,1280px);margin:auto} header,footer {display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem clamp(1rem,3vw,2rem)}
+h1 {font-weight:400;font-size:clamp(1.35rem,3vw,2rem);margin:0} a {color:#d6e0dc} canvas {display:block;width:100%;height:auto;background:#27373c}
+audio {width:min(100%,600px)} footer {justify-content:center} #status {text-align:center}
+</style>
+</head>
+<body><main>
+<header><h1>Leaving Ravensgate</h1><a href="./">Journey library</a></header>
+<canvas width="1280" height="720" aria-label="View from the rail as the ship leaves Ravensgate and passes a merchant vessel"></canvas>
+<footer><audio controls preload="auto" aria-label="Play, pause, or scrub the voyage" src="themes/pirate-voyage/departure.mp3"></audio></footer>
+<p id="status" role="status">Loading the harbor…</p>
+</main><script type="module">
+import { voyageScene } from './js/voyage.js';
+const audio = document.querySelector('audio'), status = document.querySelector('#status');
+try {
+  const draw = await voyageScene(document.querySelector('canvas'));
+  status.hidden = true;
+  let frame;
+  function paint() { draw(audio.currentTime); }
+  function tick() { paint(); if (!audio.paused && !audio.ended) frame = requestAnimationFrame(tick); }
+  function restart() { cancelAnimationFrame(frame); tick(); }
+  for (const event of ['playing','pause','seeked','ended']) audio.addEventListener(event,restart);
+  document.addEventListener('visibilitychange',restart);
+  restart();
+} catch { status.textContent='The harbor could not load. Reload to try again.'; }
+</script></body></html>
+

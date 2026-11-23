@@ -1,1 +1,6 @@
-{ "themes": ["dark-academia-train"] }
+{
+ "themes": [
+  "dark-academia-train",
+  "pirate-voyage"
+ ]
+}

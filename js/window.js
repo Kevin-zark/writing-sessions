@@ -91,14 +91,15 @@ export class WindowRenderer {
     this.after = items[last + 1];
     for (const neighbor of [this.before, this.after]) {
       if (neighbor?.scene) want.add(neighbor.scene.backdrop);
-      else if (neighbor) { want.add(this.cfg.stationApproaches?.[neighbor.id]); want.add(this.cfg.tunnelWall); }
+      else if (neighbor) { want.add(this.cfg.stationApproaches?.[neighbor.id]); want.add(this.cfg.stationWalls?.[neighbor.id]); }
     }
     want.forEach(a => a && this._img(a));
     for (const [src, e] of this.imgs) if (!want.has(src) && src !== this.frame.src) { e.img.onload = e.img.onerror = null; e.img.src = ''; this.imgs.delete(src); }
   }
   get ready() { const it = this.plan.items[this.idx], s = it?.scene; if (!s) return false; const e = this._img(s.backdrop); const neighborsReady = [this.before, this.after].every(neighbor => {
       const plate = this._img(this.cfg.stationApproaches?.[neighbor?.id]);
-      return !plate || plate.ok || plate.err;
+      const wall = this._img(this.cfg.stationWalls?.[neighbor?.id]);
+      return (!plate || plate.ok || plate.err) && (!wall || wall.ok || wall.err);
     });
     return !!(this.frame.ok && neighborsReady && (!e || e.ok || e.err)); }
 
@@ -207,40 +208,38 @@ export class WindowRenderer {
     c.globalAlpha = 1;
   }
 
-  _platformPass(station, offset, arriving) {
-    const entry = this._img(this.cfg.stationApproaches?.[station.id]);
-    if (!entry?.ok) return;
-    const P = this.pane, c = this.c;
-    // A nearby abutment hides the join. The building beyond it moves only
-    // through the overscan of its photograph as the carriage comes to rest.
-    const pier = P.w * .20;
-    const edge = arriving ? offset - pier : P.w + pier + offset;
-    if (arriving ? edge - pier > P.w : edge + pier < 0) return;
-    const width = entry.img.naturalWidth * P.h / entry.img.naturalHeight;
-    const margin = Math.max(0, (width - P.w) / 2);
-    const shift = margin * Math.tanh(offset / P.w * 1.4);
-    c.save();
-    c.beginPath();
-    const join = P.x + edge;
-    if (arriving) c.rect(join, P.y, P.x + P.w - join, P.h);
-    else c.rect(P.x, P.y, edge, P.h);
+  _platformPass(station, stop, pos, arriving) {
+    const plate = this._img(this.cfg.stationApproaches?.[station.id]);
+    const wall = this._img(this.cfg.stationWalls?.[station.id]);
+    if (!plate?.ok) return;
+    const P = this.pane, c = this.c, sign = arriving ? -1 : 1;
+    const distance = t => Math.abs(this.dist(t) - this.dist(stop));
+    // Both ends are anchored to traveled distance. The leading edge covers the
+    // last pixel at 18 seconds from the stop; the trailing edge clears it at 25.
+    const start = distance(stop + sign * 18), end = distance(stop + sign * 25);
+    if (start < .001 || end <= start) return;
+    const scale = P.w * 1.12 / start;
+    const width = P.w + (end - start) * scale;
+    const outward = (start - distance(pos)) * scale;
+    const x = arriving ? P.w - outward - width : outward;
+    if (arriving ? x > P.w : x + width < 0) return;
+    const join = x + width / 2;
+    const cut = Math.max(0, Math.min(P.w, join));
+    c.save(); c.beginPath();
+    if (arriving) c.rect(P.x + cut, P.y, P.w - cut, P.h);
+    else c.rect(P.x, P.y, cut, P.h);
     c.clip();
-    c.drawImage(entry.img, P.x - margin + shift, P.y, width, P.h);
+    const w = plate.img.naturalWidth * P.h / plate.img.naturalHeight;
+    const margin = Math.max(0, (w - P.w) / 2);
+    const shift = -sign * margin * Math.tanh(distance(pos) / start);
+    c.drawImage(plate.img, P.x - margin + shift, P.y, w, P.h);
     c.restore();
-    const wall = this._img(this.cfg.tunnelWall);
-    if (wall?.ok && edge + pier / 2 > 0 && edge - pier / 2 < P.w) {
-      const x = join - pier / 2;
-      const sw = wall.img.naturalHeight * pier / P.h;
-      c.drawImage(wall.img, (wall.img.naturalWidth - sw) / 2, 0,
-        sw, wall.img.naturalHeight, x, P.y, pier, P.h);
-      const shade = c.createLinearGradient(x, 0, x + pier, 0);
-      shade.addColorStop(0, 'rgba(10,12,14,.65)');
-      shade.addColorStop(.09, 'rgba(10,12,14,.18)');
-      shade.addColorStop(.78, 'rgba(10,12,14,.22)');
-      shade.addColorStop(1, 'rgba(10,12,14,.74)');
-      c.fillStyle = shade;
-      c.fillRect(x, P.y, pier, P.h);
-    }
+    if (!wall?.ok || x >= P.w || x + width <= 0) return;
+    // Crop a continuous facade at its photographic aspect ratio.
+    const tile = Math.max(width, wall.img.naturalWidth * P.h / wall.img.naturalHeight);
+    c.save(); c.beginPath(); c.rect(P.x + x, P.y, width, P.h); c.clip();
+    c.drawImage(wall.img, P.x + x - (tile-width)/2, P.y, tile, P.h);
+    c.restore();
   }
 
   draw(pos) {
@@ -310,9 +309,8 @@ export class WindowRenderer {
       c.drawImage(reflection.img, P.x + P.w * .073, P.y + P.h * .095, P.h * .20, P.h * .233);
     }
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-    const platformSpeed = sc.near * P.h / 720;
-    if (prevIt?.station != null) this._platformPass(prevIt, (this.dist(it.start) - F) * platformSpeed, false);
-    if (nextIt?.station != null) this._platformPass(nextIt, (this.dist(it.end) - F) * platformSpeed, true);
+    if (prevIt?.station != null) this._platformPass(prevIt, it.start, pos, false);
+    if (nextIt?.station != null) this._platformPass(nextIt, it.end, pos, true);
     c.restore();
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
   }

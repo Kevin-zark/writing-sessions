@@ -1,0 +1,45 @@
+{
+ "id": "pirate-voyage",
+ "title": "The Pirate Voyage",
+ "description": "Leave Ravensgate under gray skies and meet a merchant brig in the open chop.",
+ "cover": "cover.webp",
+ "preview": "voyage.html",
+ "previewDuration": 52,
+ "credits": [
+  {
+   "kind": "ambience",
+   "title": "Ambience City Quiet Night Air Tone",
+   "author": "leonelmail",
+   "url": "https://freesound.org/s/427841/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "city",
+    "city_s1"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Gentle waves on a lake",
+   "author": "TheFlyFishingFilmmaker",
+   "url": "https://freesound.org/s/614299/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "lake_lap"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "winter wind 01c",
+   "author": "klangfabrik",
+   "url": "https://freesound.org/s/117513/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "blizzard",
+    "wind_high"
+   ]
+  }
+ ]
+}

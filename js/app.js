@@ -42,12 +42,13 @@ function renderLibrary() {
       <button class="card-theme" data-theme="${esc(t.id)}">
         <div class="cover" style="background-image:url('${ASSET}themes/${esc(t.id)}/${esc(t.cover)}')"></div>
         <div class="meta"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p>
-        <div class="journey-actions"><span class="journey-details">${t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span><span class="choose-session">Set up session</span></div></div>
+        <div class="journey-actions"><span class="journey-details">${t.preview ? t.previewDuration + ' second preview' : t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span><span class="choose-session">${t.preview ? 'Open voyage' : 'Set up session'}</span></div></div>
       </button>`).join('') || '<p class="muted">No themes yet.</p>'}
     </div>`;
   $('#view-library').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => openSheet(themes.find(t => t.id === b.dataset.theme)));
 }
 function openSheet(t) {
+  if (t.preview) { location.assign(t.preview); return; }
   const sh = $('#sheet'); const s = summary();
   sh.hidden = false; sh.innerHTML = `
     <div class="sheet-card">

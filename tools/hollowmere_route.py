@@ -99,6 +99,15 @@ def balance_soundtrack(manifest):
         # The photographed tree line supplies the middle distance.
         view.pop('mid', None)
         view['near'] = f"zones/forest/bank-{view['id']}.webp"
+    manifest['version'] = 13
+    manifest['render']['stationWalls'] = {
+        s['id']: f"stills/pass-{s['id']}.webp" for s in manifest['stations']
+    }
+    for key, filename in [('bridge', 'dock-bridge'), ('gardenWall', 'garden-wall'), ('baileyWall', 'bailey-wall')]:
+        manifest['render']['crossings'][key] = f'zones/city/{filename}-pass.webp'
+    for view in manifest['legs'][0]['segments'][:3]:
+        view.update(backdrop=f"zones/city/{view['id']}-street.webp", panBackdrop=True)
+        view.pop('mid', None)  # The street plate contains the facades and their skyline.
     # Match chapter music around -20.5 LUFS before the listener's volume control.
     trims = [[.49, .53], [.70, .69], [.64, .60], [.68, .72, .49, .54]]
     for leg, gains in zip(manifest['legs'], trims):
