@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 5,
+ "version": 6,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -403,6 +403,21 @@
     "near": 0.26
    },
    "segments": [
+    {
+     "id": "industrial-docks",
+     "title": "Ravensgate industrial docks",
+     "backdrop": "zones/city/docks-bg.png",
+     "mid": "zones/city/docks-mid.png",
+     "near": "zones/city/docks-fg.png",
+     "paintedStrips": true,
+     "exitCut": "bridge",
+     "introViewSeconds": 60,
+     "fog": {
+      "color": "#879ba3",
+      "far": 0.46,
+      "near": 0.3
+     }
+    },
     {
      "id": "c1",
      "title": "Rooftops in the fog · the cathedral",

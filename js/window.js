@@ -113,7 +113,11 @@ export class WindowRenderer {
   draw(pos) {
     const items = this.plan.items; let it = items[this.idx]; if (!it || !it.scene) return;
     const c = this.c, P = this.pane, S = it.scene, F = this.dist(pos), sp = this.speedNow(pos), sc = this.cfg.speeds;
-    const prevIt = items[this.idx - 1], pv = prevIt && prevIt.kind === 'cruise' && prevIt.scene && prevIt.scene !== it.scene && Math.abs(prevIt.end - it.start) < 0.5 ? prevIt.scene : null;   // zone/segment change with no station between: cross-fade
+    const prevIt = items[this.idx - 1];
+    const nextIt = items[this.idx + 1];
+    const enteringFromBridge = prevIt?.scene?.exitCut === 'bridge' && prevIt.scene !== S;
+    const approachingBridge = S.exitCut === 'bridge' && nextIt?.kind === 'cruise' && nextIt.scene !== S;
+    const pv = !enteringFromBridge && prevIt && prevIt.kind === 'cruise' && prevIt.scene && prevIt.scene !== it.scene && Math.abs(prevIt.end - it.start) < 0.5 ? prevIt.scene : null;   // zone/segment change with no station between: cross-fade
     const a = pv ? smooth((pos - it.start) / this.cfg.xfade) : 1;
     const ph = (id) => hash(id.length * 31 + id.charCodeAt(0) * 7 + id.charCodeAt(id.length - 1) * 13);
     c.fillStyle = '#0b0b0c'; c.fillRect(0, 0, this.W, this.H);
@@ -127,14 +131,17 @@ export class WindowRenderer {
       if (comp === 'source-over') { if (old) this._tile(this._img(old), speed, F, ph(old), 1, comp, shift); this._tile(this._img(cur), speed, F, ph(cur || 'x'), old ? a : 1, comp, shift); }
       else { if (old) this._tile(this._img(old), speed, F, ph(old), 1 - a, comp, shift); this._tile(this._img(cur), speed, F, ph(cur || 'x'), old ? a : 1, comp, shift); }
     };
-    layer('backdrop', sc.backdrop, 'source-over');
+    if (S.paintedStrips) this._tile(this._img(S.backdrop), sc.backdrop, F, 0, 1, 'source-over');
+    else layer('backdrop', sc.backdrop, 'source-over');
     const fg = S.fog || {}; const fogC = fg.color || '#aab4c4';
     this._fog(fogC, (fg.far ?? 0.35), sc.fogFar, F, 0.13, 0.28, 0.7);
-    layer('mid', sc.mid, 'multiply');
+    if (S.paintedStrips) this._tile(this._img(S.mid), sc.mid, F, 0, 1, 'source-over');
+    else layer('mid', sc.mid, 'multiply');
     // landmark pass-by: slides across the pane once
     const lm = S.landmark; if (lm) this._landmark(it, lm, pos, F, sc);
     this._fog(fogC, (fg.near ?? 0.28), sc.fogNear, F, 0.61, 0.5, 0.62);
-    layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * sp);
+    if (S.paintedStrips) this._tile(this._img(S.near), sc.near, F, 0, 1, 'source-over');
+    else layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * sp);
     // weather
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)
@@ -144,6 +151,11 @@ export class WindowRenderer {
     const g = c.createRadialGradient(P.x + P.w / 2, P.y + P.h / 2, P.h * 0.35, P.x + P.w / 2, P.y + P.h / 2, P.w * 0.62);
     g.addColorStop(0, 'rgba(8,10,14,0)'); g.addColorStop(1, 'rgba(8,10,14,0.42)'); c.fillStyle = g; c.fillRect(P.x, P.y, P.w, P.h);
     c.restore();
+    // The underside of the bridge hides the exact instant of the scene swap.
+    if ((approachingBridge && it.end - pos <= 0.65) || (enteringFromBridge && pos - it.start < 0.65)) {
+      c.fillStyle = '#07090b';
+      c.fillRect(P.x, P.y, P.w, P.h);
+    }
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
   }
 

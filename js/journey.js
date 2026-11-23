@@ -20,7 +20,8 @@ export function chainOf(m) {
       out.legs.push({ id: leg.id, title: leg.title, music: leg.music || [], base, depart: null, arrive: null, speed: leg.speed ?? 1, rampIn: leg.rampIn, rampOut: leg.rampOut, cruise: true,
         views: leg.segments.map((v, vi) => ({
           id: v.id, title: v.title, kind: 'cruise', leg: li, view: vi, clip: null, still: v.backdrop, dur: 0, next: null, ambience: mergeLayers(base, v.ambience),
-          scene: { backdrop: v.backdrop, mid: v.mid, near: v.near || leg.near, fog: { ...(leg.fog || {}), ...(v.fog || {}) }, weather: { ...(leg.weather || {}), ...(v.weather || {}) }, landmark: v.landmark || null },
+          introViewSeconds: v.introViewSeconds,
+          scene: { paintedStrips: v.paintedStrips, exitCut: v.exitCut, backdrop: v.backdrop, mid: v.mid, near: v.near || leg.near, fog: { ...(leg.fog || {}), ...(v.fog || {}) }, weather: { ...(leg.weather || {}), ...(v.weather || {}) }, landmark: v.landmark || null },
         })) });
       return;
     }
@@ -85,9 +86,12 @@ export function planJourney(tl, m, { minDwell = 25 } = {}) {
     const V = leg.views, minD = Math.max(minDwell, 45), span = arr - dep;
     let n = V.length; while (n > 1 && n * minD > span) n--;
     const pick = n >= V.length ? V.map((_, i) => i) : Array.from({ length: n }, (_, i) => n === 1 ? 0 : Math.round(i * (V.length - 1) / (n - 1)));
-    const dw = span / pick.length;
+    if (!pick.length) return;
+    const equalDwell = span / pick.length;
+    const opening = Math.min(V[pick[0]].introViewSeconds ?? equalDwell, equalDwell);
+    const dwell = pick.length > 1 ? (span - opening) / (pick.length - 1) : span;
     pick.forEach((vi, i) => {
-      const v = V[vi], s0 = dep + i * dw, e0 = i === pick.length - 1 ? arr : dep + (i + 1) * dw, lm = v.scene.landmark, len = e0 - s0, dur = lm?.dur || 26;
+      const v = V[vi], s0 = i === 0 ? dep : dep + opening + (i - 1) * dwell, e0 = i === pick.length - 1 ? arr : dep + opening + i * dwell, lm = v.scene.landmark, len = e0 - s0, dur = lm?.dur || 26;
       const base = { kind: 'cruise', scene: v.scene, leg: li, view: vi, label: v.title, id: v.id, still: v.still, clip: null };
       let win = null; if (lm && len >= dur + 14) { const a = s0 + 8 + Math.max(0, len - dur - 16) * (lm.at ?? 0.55); win = [a, a + dur]; }
       if (win && lm.ambience?.length) {
@@ -134,17 +138,17 @@ export function planJourney(tl, m, { minDwell = 25 } = {}) {
     const dwell = Math.max(1, (avail - bridges) / pick.length);
     let x = 0;
     const seg = (dur, it) => { const s = tmap(x), e = tmap(x + dur); x += dur; push({ ...it, start: s, end: e }); };
-    if (useDepart) seg(D, { kind: 'bridge', clip: leg.depart.clip, ambience: V[0]?.ambience || leg.base, from: passThroughIn ? 'pass' : 'station', leg: li, label: `Departing · ${leg.title}`, id: `depart-${leg.id}` });
+    if (useDepart) seg(D, { kind: 'bridge', clip: leg.depart.clip, ambience: V[0]?.ambience || leg.base, from: passThroughIn ? 'pass' : 'station', leg: li, label: `Departing Â· ${leg.title}`, id: `depart-${leg.id}` });
     pick.forEach((vi, i) => {
       const v = V[vi];
       seg(dwell, { kind: i === 0 && !useDepart ? 'xfade' : 'loop', clip: v.clip, still: v.still, ambience: v.ambience, leg: li, view: vi, label: v.title, id: v.id, loopDur: v.dur });
       if (i < pick.length - 1) {
         const bd = bridgeDur(i);
-        if (bd) seg(bd, { kind: 'bridge', clip: v.next.clip, ambience: V[pick[i + 1]].ambience, leg: li, label: `${v.title} → ${V[pick[i + 1]].title}`, id: `br-${v.id}` });
+        if (bd) seg(bd, { kind: 'bridge', clip: v.next.clip, ambience: V[pick[i + 1]].ambience, leg: li, label: `${v.title} â†’ ${V[pick[i + 1]].title}`, id: `br-${v.id}` });
         else { const nx = items[items.length - 1]; nx.xfadeNext = true; }
       }
     });
-    if (useArrive) seg(A, { kind: 'bridge', clip: leg.arrive.clip, ambience: ch.stations[li + 1]?.ambience || [], leg: li, label: `Arriving · ${ch.stations[li + 1]?.title || ''}`, id: `arrive-${leg.id}` });
+    if (useArrive) seg(A, { kind: 'bridge', clip: leg.arrive.clip, ambience: ch.stations[li + 1]?.ambience || [], leg: li, label: `Arriving Â· ${ch.stations[li + 1]?.title || ''}`, id: `arrive-${leg.id}` });
     // pad any rounding remainder onto the last item
     if (items.length) items[items.length - 1].end = Math.max(items[items.length - 1].end, arr);
     // the stop after this leg
