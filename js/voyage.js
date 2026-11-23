@@ -1,3 +1,4 @@
+import { prepareFlags, prepareSails, prepareTelltale, voyageWind } from './voyage-flags.js';
 const BASE = new URL('../themes/pirate-voyage/', import.meta.url);
 export const voyageSeconds = 104; // Standalone Ravensgate departure excerpt
 const legSeconds=1500;
@@ -15,7 +16,7 @@ function waterSurface(image) {
   const gl = surface.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true });
   if (!gl) {
     const ctx=surface.getContext('2d');
-    return (t,distance) => {
+    return (t,distance,shelter) => {
       const w=surface.width, h=surface.height;
       ctx.drawImage(image,0,0,w,h);
       const age=distance%6, other=(distance+3)%6, focus=.61*w;
@@ -25,7 +26,8 @@ function waterSurface(image) {
           const d=(2*y-h)/h, range=3.7/Math.max(.014,d);
           const ratio=range/(range+1.7*seconds);
           const swell=Math.sin(.63*(range+distance*1.7)-.81*t);
-          const sourceY=(.5+(y/h-.5+d*.018*swell)*ratio)*image.height;
+          const basin=1-.70*shelter;
+          const sourceY=(.5+(y/h-.5+d*.018*swell*basin)*ratio*basin)*image.height;
           ctx.drawImage(image,focus/w*(1-ratio)*image.width,Math.min(image.height-4,sourceY),
             image.width*ratio,4,0,y,w,3.1);
         }
@@ -43,7 +45,7 @@ function waterSurface(image) {
   const program = gl.createProgram();
   gl.attachShader(program, shader(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}'));
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `precision highp float;
-    varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock;
+    varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock; uniform float shelter;
     // Reproject from a recent point along the track. Two overlapping
     // reference times keep photographic wave detail streaming past indefinitely.
     vec3 underway(vec2 q,float range,float age){
@@ -83,6 +85,17 @@ function waterSurface(image) {
       float facing=dot(slope,vec2(-.45,.84));
       col*=1.+amplitude*(.10*facing+.035*height);
       col+=vec3(.030,.036,.039)*amplitude*smoothstep(.045,.32,facing);
+      if (shelter>0. && d>0.) {
+        // Inside the headlands, short ripples disturb a quieter reflection.
+        // Sample the fine-grained sea below the horizon rather than scaling
+        // the offshore whitecaps down in place.
+        float inlet=sin(world.x*1.13+world.y*.77-time*1.42);
+        float rebound=sin(world.y*1.46-world.x*.64+time*.94);
+        vec2 stillUV=vec2(uv.x+.0023*d*inlet,.5+d*(.135+.004*rebound));
+        vec3 calm=texture2D(sea,stillUV).rgb;
+        calm*=1.+.055*d*(inlet+.48*rebound);
+        col=mix(col,calm,shelter*smoothstep(.0,.018,d));
+      }
       gl_FragColor=vec4(col,1.);
 
     }`));
@@ -101,7 +114,8 @@ function waterSurface(image) {
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,image);
   const clock=gl.getUniformLocation(program,'time');
   const distanceClock=gl.getUniformLocation(program,'distanceClock');
-  const render=(t,distance)=>{ gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
+  const shelterUniform=gl.getUniformLocation(program,'shelter');
+  const render=(t,distance,shelter)=>{ gl.uniform1f(shelterUniform,shelter); gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
   render.dispose=()=>gl.getExtension('WEBGL_lose_context')?.loseContext();
   return render;
 }
@@ -112,6 +126,8 @@ export async function voyageScene(canvas, base=BASE) {
     const img=new Image(); img.src=new URL(name+'.webp',base); await img.decode(); return [name,img];
   })));
   const {sea,harbor,merchant,foredeck,wash:foam,navy,sunny}=art;
+  const flags=prepareFlags(art), telltale=prepareTelltale();
+  let wind=0, windTime=0;
   canvas.width=1280; canvas.height=720;
   const c=canvas.getContext('2d',{alpha:false});
   const water=waterSurface(sea), warmWater=waterSurface(sunny), tempest=waterSurface(art.storm), eveningSea=waterSurface(art.sunset);
@@ -124,26 +140,33 @@ export async function voyageScene(canvas, base=BASE) {
   const sunDeck=lightDeck('sepia(.22) saturate(1.24) brightness(1.18)');
   const duskDeck=lightDeck('sepia(.35) saturate(1.3) brightness(.90)');
   const wetDeck=lightDeck('saturate(.72) brightness(.69) contrast(1.12)');
+  const decks=new Map([foredeck,sunDeck,duskDeck,wetDeck].map(image=>{
+    const plate=document.createElement('canvas');
+    plate.width=image.width; plate.height=image.height;
+    const ctx=plate.getContext('2d'); ctx.drawImage(image,0,0);
+    const sails=prepareSails(image,'deck');
+    return [image,()=>{ sails(ctx,wind,windTime); return plate; }];
+  }));
   const ocean=document.createElement('canvas');
   ocean.width=1280; ocean.height=720;
   const oceanCtx=ocean.getContext('2d');
-  function blendSea(t, distance, warm, storm, evening) {
+  function blendSea(t, distance, warm, storm, evening, shelter) {
     if (evening>0) {
-      if (evening>=1) return eveningSea(t,distance);
-      oceanCtx.drawImage(warmWater(t,distance),0,0);
-      oceanCtx.globalAlpha=evening; oceanCtx.drawImage(eveningSea(t,distance),0,0); oceanCtx.globalAlpha=1;
+      if (evening>=1) return eveningSea(t,distance,shelter);
+      oceanCtx.drawImage(warmWater(t,distance,shelter),0,0);
+      oceanCtx.globalAlpha=evening; oceanCtx.drawImage(eveningSea(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
       return ocean;
     }
     if (storm>0) {
-      if (storm>=1) return tempest(t,distance);
-      oceanCtx.drawImage(warmWater(t,distance),0,0);
-      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance),0,0); oceanCtx.globalAlpha=1;
+      if (storm>=1) return tempest(t,distance,shelter);
+      oceanCtx.drawImage(warmWater(t,distance,shelter),0,0);
+      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
       return ocean;
     }
-    if (warm<=0) return water(t,distance);
-    if (warm>=1) return warmWater(t,distance);
-    oceanCtx.drawImage(water(t,distance),0,0);
-    oceanCtx.globalAlpha=warm; oceanCtx.drawImage(warmWater(t,distance),0,0); oceanCtx.globalAlpha=1;
+    if (warm<=0) return water(t,distance,shelter);
+    if (warm>=1) return warmWater(t,distance,shelter);
+    oceanCtx.drawImage(water(t,distance,shelter),0,0);
+    oceanCtx.globalAlpha=warm; oceanCtx.drawImage(warmWater(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
     return ocean;
   }
 
@@ -183,6 +206,23 @@ export async function voyageScene(canvas, base=BASE) {
     while (row>0 && alpha[4*(row*count+i)+3]<90) row--;
     return (row+1)/128;
   });
+  // A transparent strip of broken foam. Each strand shares the crest's travel
+  // while gaps in the lace expose the photographic shallows underneath.
+  const swash=document.createElement('canvas');
+  swash.width=768; swash.height=48;
+  const lace=swash.getContext('2d');
+  for(let strand=0;strand<23;strand++) {
+    lace.beginPath();
+    for(let x=0;x<=768;x+=2) {
+      const crest=10+3*Math.sin(x*.019)+2*Math.sin(x*.093+.8);
+      const y=crest+strand*.88+Math.sin(x*.037+strand*.61)*(1+strand*.21)
+        +1.4*Math.sin(x*.13+strand*.67);
+      if(x===0 || (strand>4 && Math.sin(x*.046+strand*1.8)<-.35)) lace.moveTo(x,y);
+      else lace.lineTo(x,y);
+    }
+    lace.strokeStyle='rgba(251,238,217,'+(.54/(1+strand*.095))+')';
+    lace.lineWidth=strand<5 ? 2.3 : 1.25; lace.stroke();
+  }
   const berths={
     port:{ridge:-94, skew:20, tender:1.5},
     haven:{ridge:78, skew:-24, tender:16},
@@ -191,7 +231,7 @@ export async function voyageScene(canvas, base=BASE) {
   };
   function landfall(name, approach, t) {
     if (approach<=0) return;
-    const img=art[name], berth=berths[name];
+    const img=flags(art[name],wind,windTime), berth=berths[name];
     const range=67+920*(1-approach)**1.4;
     // Follow the channel on a shallow diagonal. Nearby moorings change bearing
     // against town, while the high ground lies another half kilometre inland.
@@ -224,6 +264,38 @@ export async function voyageScene(canvas, base=BASE) {
       }
       left=right;
     }
+    // Breaker crests progress landward across a gently curving beach.
+    // On a hard quay, only scattered small patches slap against the masonry.
+    const beach=name==='beach', rocky=name==='post';
+    if (beach) {
+      for(let wave=0;wave<3;wave++) {
+        for(let i=0;i<count;i++) {
+          const u=(i+.5)/count, pt=shorePoint(u);
+          const left=shorePoint(i/count), right=shorePoint((i+1)/count);
+          const phase=(t/8.6+wave/3+.028*Math.sin(u*12+t*.16)+.09*u)%1;
+          const breaking=between(phase,.13,.48)*(1-between(phase,.72,1));
+          const width=right.x-left.x;
+          if(width<=0 || right.x<0 || left.x>1280 || !breaking) continue;
+          const reach=5.8*(1-phase)**1.55-.37*between(phase,.69,1);
+          const y=pt.y+reach*pt.scale;
+          const h=pt.scale*(.46+.53*between(phase,.42,.88));
+          c.globalAlpha=ease(approach*4)*breaking*(.61+.18*Math.sin(14*u+wave*2));
+          c.drawImage(swash,i*swash.width/count,0,swash.width/count,48,
+            left.x,y-h*.34,width+.45,h);
+        }
+      }
+    } else {
+      for (let i=0;i<18;i++) {
+        const u=(i+.5)/18, pt=shorePoint(u);
+        const foot=name==='port' ? portBase[Math.floor(u*count)]-.70 : 0;
+        const phase=(t/4.3+.21*Math.sin(u*13)+.32*Math.sin(i*4.1))%1;
+        const y=pt.y+foot*height*pt.scale+(1-phase)**1.7*pt.scale*(rocky?.57:.32);
+        const width=pt.scale*1.8*(1+.23*Math.sin(i*3.1));
+        c.globalAlpha=ease(approach*4)*Math.sin(Math.PI*phase)**2*.24;
+        c.drawImage(foam,pt.x-width*.5,y,width,Math.max(.65,width*.12));
+      }
+    }
+    c.globalAlpha=ease(approach*6);
     if (berth.tender!==undefined) {
       const boat=project(berth.tender+.32*Math.sin(t*.14),range-32);
       const w=5.4*boat.scale, bob=.09*boat.scale*Math.sin(t*.72+.8);
@@ -292,6 +364,7 @@ export async function voyageScene(canvas, base=BASE) {
 
   function passShip(image,x,w,proximity,t,surface,forward=false) {
     if (x>1340 || x+w*1.5 < -52) return;
+    image=flags(image,wind,windTime);
     const bob = 374 + 30*proximity + 3.4*Math.sin(t*.72+2);
     const heel = .012*Math.sin(t*.62+.8);
     // Project stations along the keel at their respective ranges. The ends
@@ -425,6 +498,8 @@ export async function voyageScene(canvas, base=BASE) {
     const storm=leg===2 ? arc(progress,.06,.32,.67,.92) : 0;
     const rain=leg===0 ? 1-between(progress,.40,.67) : storm;
     const underway=atAnchor ? 0 : arc(progress,0,.025,.90,1);
+    windTime=t;
+    wind=voyageWind(leg,warm,storm,underway,t);
     const open=underway*(1-.77*warm+2.1*storm);
     const swell=Math.sin(t*.68+.16*Math.sin(t*.23));
     const cross=Math.sin(t*.47+1.1);
@@ -443,7 +518,10 @@ export async function voyageScene(canvas, base=BASE) {
       : position>legSeconds-ramp ? legSeconds-ramp-(legSeconds-position)**2/(2*ramp)
       : position-ramp/2;
     const distance=leg*(legSeconds-ramp)+speedIntegral;
-    const surface=blendSea(t,distance,warm,storm,evening);
+    const departure=1-between(progress,0,leg===0 ? .054 : .15);
+    const arrival=between(progress,leg===0 ? .64 : .76,1);
+    const shelter=Math.max(departure*.91,arrival*(leg===3 ? .68 : .91));
+    const surface=blendSea(t,distance,warm,storm,evening,shelter);
     c.drawImage(surface,-52,-30,1384,780);
     const travel=1.7*speedIntegral;
     // Kilometres beyond the quay, the distant ridge barely changes bearing.
@@ -482,7 +560,6 @@ export async function voyageScene(canvas, base=BASE) {
       seaStacks(progress,.12,.41,t);
       seaStacks(progress,.57,.83,t);
     }
-    const arrival=between(progress,leg===0 ? .64 : .76,1);
     landfall(ports[leg],arrival,t);
     c.restore();
     c.save();
@@ -491,11 +568,12 @@ export async function voyageScene(canvas, base=BASE) {
     c.globalCompositeOperation='source-over';
     if (underway>.001) { bowWash(t,open,underway); }
     c.restore();
-    c.drawImage(foredeck,-7,-5,1294,730);
-    if (warm>0) { c.globalAlpha=warm; c.drawImage(sunDeck,-7,-5,1294,730); }
-    if (evening>0) { c.globalAlpha=evening; c.drawImage(duskDeck,-7,-5,1294,730); }
-    if (storm>0) { c.globalAlpha=storm; c.drawImage(wetDeck,-7,-5,1294,730); }
+    if (warm<1) c.drawImage(decks.get(foredeck)(),-7,-5,1294,730);
+    if (warm>0 && storm<1 && evening<1) { c.globalAlpha=warm; c.drawImage(decks.get(sunDeck)(),-7,-5,1294,730); }
+    if (evening>0) { c.globalAlpha=evening; c.drawImage(decks.get(duskDeck)(),-7,-5,1294,730); }
+    if (storm>0) { c.globalAlpha=storm; c.drawImage(decks.get(wetDeck)(),-7,-5,1294,730); }
     c.globalAlpha=1;
+    telltale(c,wind,t);
     const chart=leg===2 ? between(progress,.985,1) : leg===3 ? 1-between(progress,.02,.10) : 0;
     if (chart>0) {
       c.save(); c.globalAlpha=chart; c.translate(1020,655+(1-chart)*85); c.rotate(-.16);
