@@ -123,7 +123,8 @@ export class WindowRenderer {
     c.fillStyle = '#0b0b0c'; c.fillRect(0, 0, this.W, this.H);
     c.save(); c.beginPath(); c.rect(P.x, P.y, P.w, P.h); c.clip();
     // gentle carriage sway + rail clack, scaled by how fast the train really goes
-    const swayY = sp * ((P.h / 720) * (1.1 * Math.sin(pos * 2.3) + 0.5 * Math.sin(pos * 6.7 + 1)));
+    const swaySpeed = this.cfg.sway === false ? 0 : sp;
+    const swayY = swaySpeed * ((P.h / 720) * (1.1 * Math.sin(pos * 2.3) + 0.5 * Math.sin(pos * 6.7 + 1)));
     c.translate(0, swayY);
     // backdrop (+ cross-fade to the previous one while it changes)
     const layer = (key, speed, comp, shift = 0) => {
@@ -141,7 +142,7 @@ export class WindowRenderer {
     const lm = S.landmark; if (lm) this._landmark(it, lm, pos, F, sc);
     this._fog(fogC, (fg.near ?? 0.28), sc.fogNear, F, 0.61, 0.5, 0.62);
     if (S.paintedStrips) this._tile(this._img(S.near), sc.near, F, 0, 1, 'source-over');
-    else layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * sp);
+    else layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * swaySpeed);
     // weather
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)

@@ -65,7 +65,7 @@ m = {
  'status': 'published', 'owner': 'kevin', 'origin': {'type': 'owner', 'requestId': None, 'requestedBy': None},
  'createdAt': '2026-11-21', 'version': 3,
  'designedFor': {'sprintMin': 25, 'breakMin': 5, 'sprints': 4, 'intro': True, 'outro': True},
- 'render': {'type': 'window', 'objectPosition': '50% 50%', 'size': [1280, 720], 'frame': {'src': 'frame/overlay.png', 'pane': json.load(open(os.path.join(T, 'frame', 'pane.json')))}},
+ 'render': {'type': 'window', 'sway': False, 'objectPosition': '50% 50%', 'size': [1280, 720], 'frame': {'src': 'frame/overlay.png', 'pane': json.load(open(os.path.join(T, 'frame', 'pane.json')))}},
  'style': {'camera': 'Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame', 'interior': 'Dark mahogany panels, bottle-green velvet curtains tied back at both edges, brass sconce upper left, leather book + teacup on the ledge',
            'palette': 'Warm amber interior vs cool desaturated exterior', 'lens': '35mm, light film grain, painterly cinematic realism', 'motion': 'Exterior is procedural parallax behind the frame: always moving, landmarks slide past once', 'reference': 'stills/master reference kept in the theme workspace'},
  'ambienceLib': ambLib,

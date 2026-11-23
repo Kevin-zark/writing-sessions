@@ -23,6 +23,7 @@
  },
  "render": {
   "type": "window",
+  "sway": false,
   "objectPosition": "50% 50%",
   "size": [
    1280,
@@ -31,10 +32,10 @@
   "frame": {
    "src": "frame/overlay.png",
    "pane": {
-    "x": 391,
-    "y": 23,
-    "w": 716,
-    "h": 519
+    "x": 389,
+    "y": 41,
+    "w": 722,
+    "h": 482
    }
   }
  },
