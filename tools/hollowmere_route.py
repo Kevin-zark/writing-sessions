@@ -30,6 +30,28 @@ def extend_route(manifest):
             elif view['id'] == 'c3':
                 view['backdrop'] = 'zones/city/docks-bg.webp'
 
+    refine_platforms_and_terrain(manifest)
+
+
+def refine_platforms_and_terrain(manifest):
+    manifest['version'] = 8
+    manifest['breakText'][1] = 'Let your eyes rest on the platform for a moment.'
+    for station in manifest['stations'][1:-1]:
+        station.pop('loop', None)
+        station.pop('loopDur', None)
+        station['still'] = f"stills/platform-{station['id']}.webp"
+        station['ambience'] = [s for s in station['ambience']
+                               if not s['layer'].startswith(('station_walla', 'luggage'))]
+    forest, mountains = manifest['legs'][2:]
+    forest['near'] = 'zones/forest/winter-bank.webp'
+    for view in mountains['segments']:
+        # The photographic plates already include the true ridge and village skyline.
+        # The second rocky silhouette cut across their buildings and the viaduct.
+        view.pop('mid', None)
+        if view['id'] in ('m4', 'college-road', 'lamplit-cottages'):
+            view['near'] = forest['near']
+
+
 VIEWS = [
     ('city', 'wealthy-quarter', 'castle-green', 'The castle green', 'city/m1', 0, 0, [('bells', 0.2)]),
     ('city', 'c2', 'public-park', 'The public gardens', 'lake/m1', 0, 0, [('city', 0.18)]),

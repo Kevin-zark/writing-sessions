@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 7,
+ "version": 8,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -287,18 +287,8 @@
   {
    "id": "s1",
    "title": "Greyfriars Road",
-   "loop": "clips/loop-s1.mp4",
-   "loopDur": 10.0,
-   "still": "stills/s1.jpg",
+   "still": "stills/platform-s1.webp",
    "ambience": [
-    {
-     "layer": "station_walla",
-     "gain": 2.5434
-    },
-    {
-     "layer": "luggage_s1",
-     "gain": 4.6134
-    },
     {
      "layer": "city_s1",
      "gain": 3.2293
@@ -308,18 +298,8 @@
   {
    "id": "s2",
    "title": "Wrenmere Halt",
-   "loop": "clips/loop-s2.mp4",
-   "loopDur": 10.0,
-   "still": "stills/s2.jpg",
+   "still": "stills/platform-s2.webp",
    "ambience": [
-    {
-     "layer": "station_walla",
-     "gain": 0.45
-    },
-    {
-     "layer": "luggage",
-     "gain": 0.45
-    },
     {
      "layer": "rain_glass",
      "gain": 0.8
@@ -329,18 +309,8 @@
   {
    "id": "s3",
    "title": "Pinehollow",
-   "loop": "clips/loop-s3.mp4",
-   "loopDur": 10.0,
-   "still": "stills/s3.jpg",
+   "still": "stills/platform-s3.webp",
    "ambience": [
-    {
-     "layer": "station_walla",
-     "gain": 0.45
-    },
-    {
-     "layer": "luggage",
-     "gain": 0.5
-    },
     {
      "layer": "forest_wind",
      "gain": 0.5
@@ -835,7 +805,7 @@
     }
    ],
    "speed": 0.8,
-   "near": "zones/forest/verge.webp",
+   "near": "zones/forest/winter-bank.webp",
    "fog": {
     "color": "#c9d4e6",
     "far": 0.3,
@@ -1005,7 +975,6 @@
      "id": "m1",
      "title": "The climb · the viaduct",
      "backdrop": "zones/mountains/vista-1.webp",
-     "mid": "zones/mountains/m1.webp",
      "weather": {
       "snow": 0.4
      },
@@ -1031,7 +1000,6 @@
      "id": "m2",
      "title": "The tunnel",
      "backdrop": "zones/mountains/vista-2.webp",
-     "mid": "zones/mountains/m2.webp",
      "weather": {
       "snow": 0.8
      },
@@ -1067,7 +1035,6 @@
      "id": "m3",
      "title": "Blizzard on the pass · the monastery",
      "backdrop": "zones/mountains/vista-2.webp",
-     "mid": "zones/mountains/m3.webp",
      "weather": {
       "snow": 0.95
      },
@@ -1101,7 +1068,6 @@
      "id": "ridge-clearing",
      "title": "The storm breaks",
      "backdrop": "zones/mountains/ridge-clearing.webp",
-     "mid": "zones/mountains/m2.webp",
      "paintedStrips": true,
      "panBackdrop": true,
      "weather": {
@@ -1119,7 +1085,6 @@
      "id": "m4",
      "title": "Hollowmere in the valley · the observatory",
      "backdrop": "zones/mountains/vista-3.webp",
-     "mid": "zones/forest/m1.webp",
      "weather": {
       "snow": 0.3
      },
@@ -1143,13 +1108,13 @@
       "base": 1.1
      },
      "paintedStrips": true,
-     "panBackdrop": true
+     "panBackdrop": true,
+     "near": "zones/forest/winter-bank.webp"
     },
     {
      "id": "college-road",
      "title": "College Road at dusk",
      "backdrop": "zones/mountains/college-road.webp",
-     "mid": "zones/forest/m1.webp",
      "paintedStrips": true,
      "panBackdrop": true,
      "weather": {
@@ -1165,13 +1130,13 @@
        "layer": "bells",
        "gain": 0.22
       }
-     ]
+     ],
+     "near": "zones/forest/winter-bank.webp"
     },
     {
      "id": "lamplit-cottages",
      "title": "The lamplit university village",
      "backdrop": "zones/mountains/lamplit-cottages.webp",
-     "mid": "zones/city/verge.webp",
      "paintedStrips": true,
      "panBackdrop": true,
      "weather": {
@@ -1187,7 +1152,8 @@
        "layer": "bells",
        "gain": 0.3
       }
-     ]
+     ],
+     "near": "zones/forest/winter-bank.webp"
     }
    ],
    "arrivalMusicIndex": 2
@@ -1422,7 +1388,7 @@
  },
  "breakText": [
   "The train pauses at the platform. Stretch. Sip something warm.",
-  "Let the ideas settle while passengers come and go.",
+  "Let your eyes rest on the platform for a moment.",
   "Breathe. The story will wait."
  ],
  "breakEndText": "All aboard — the next sprint begins soon...",

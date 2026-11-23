@@ -161,6 +161,28 @@ export function planJourney(tl, m, { minDwell = 25 } = {}) {
   const lastEnd = items.length ? items[items.length - 1].end : t0;
   stLoop(ch.stations.length - 1, lastEnd, Math.max(lastEnd + 0.001, tEnd));
   stops.push({ station: ch.stations.length - 1, start: lastEnd, end: tEnd, kind: outro ? 'outro' : 'destination' });
+  // Custom sessions can stop more often than the four-leg itinerary. Give every
+  // extra break a quiet platform and stop the distance clock for its full dwell.
+  if (ch.legs.every(leg => leg.cruise)) {
+    for (const [index, { b, x }] of bt.entries()) {
+      if (used.has(index)) continue;
+      const pause = spans => spans.flatMap(span => {
+        if (span.end <= b.start || span.start >= b.end) return [span];
+        const parts = [];
+        if (span.start < b.start) parts.push({ ...span, end: b.start, endsAtStop: true });
+        if (span.end > b.end) parts.push({ ...span, start: b.end, startsAtStop: true });
+        return parts;
+      });
+      const remaining = pause(items);
+      items.splice(0, items.length, ...remaining);
+      const travelSpans = pause(legSpans);
+      legSpans.splice(0, legSpans.length, ...travelSpans);
+      const station = Math.max(1, Math.min(ch.stations.length - 2, Math.round(x / S * L)));
+      stLoop(station, b.start, b.end);
+      stops.push({ station, start: b.start, end: b.end, kind: 'break' });
+    }
+    stops.sort((a, b) => a.start - b.start);
+  }
   items.sort((a, b) => a.start - b.start);
   items.forEach((it, i) => { it.i = i; it.music = it.leg >= 0 ? ch.legs[it.leg].music : []; });
   return { items, stops, legSpans, chain: ch, total: tEnd };

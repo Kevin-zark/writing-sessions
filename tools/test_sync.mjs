@@ -77,5 +77,14 @@ for (const item of plan.items.filter(item => item.leg === 1)) {
     Boolean(item.scene.weather.rain) === item.ambience.some(layer => layer.layer === 'rain_glass'));
 }
 
+for (let count = 2; count <= 12; count++) {
+  const timeline = buildTimeline({ ...DEFAULT_SETTINGS, sprints: count, breakMin: 5 });
+  const journey = planJourney(timeline, m);
+  const breaks = timeline.segs.filter(seg => seg.type === 'break');
+  check(`All breaks are full-length platform stills for ${count} sprints`, breaks.every(b =>
+    journey.items.some(it => it.start === b.start && it.end === b.end && it.station > 0 && it.still && !it.clip) &&
+    journey.legSpans.every(span => span.end <= b.start || span.start >= b.end)));
+}
+
 if (fail) { console.log(fail, 'FAILED'); process.exit(1); }
 console.log('all sync tests passed');

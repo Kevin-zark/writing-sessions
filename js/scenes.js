@@ -218,6 +218,12 @@ export class WindowStage {
     const cl = document.createElement('div'); cl.className = 'layer wlayer'; const cv = document.createElement('canvas'); cl.appendChild(cv); root.appendChild(cl);
     const sl = document.createElement('div'); sl.className = 'layer';
     sl.innerHTML = '<img class="still" alt="" decoding="async"><video muted loop playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>';
+    const carriage = document.createElement('img');
+    carriage.className = 'still platform-frame'; carriage.alt = '';
+    carriage.src = this.base + render.frame.src;
+    carriage.hidden = true;
+    sl.appendChild(carriage);
+    this.platformFrame = carriage;
     root.appendChild(sl);
     const v = sl.querySelector('video'); v.muted = true; v.defaultMuted = true; v.setAttribute('muted', '');
     if (render.objectPosition) { cv.style.objectPosition = v.style.objectPosition = sl.querySelector('img').style.objectPosition = render.objectPosition; }
@@ -232,7 +238,13 @@ export class WindowStage {
     if (want < 0) return;
     if (this.cur < 0) return this._show(want, { instant: true });
     if (want !== this.cur) return this._show(want, {});
+    if (this.st.mode === 'platform' && this.top === 'station') this._platformLight(pos);
     this._maybePreload(pos);
+  }
+  _platformLight(pos) {
+    const elapsed = pos - this.plan.items[this.cur].start;
+    const light = 0.98 + 0.017 * Math.sin(elapsed / 13) + 0.009 * Math.sin(elapsed / 7);
+    this.st.img.style.filter = `brightness(${light})`;
   }
   jump(want, pos) {
     if (want >= 0 && want !== this.cur) return this._show(want, { instant: true, pos });
@@ -241,6 +253,7 @@ export class WindowStage {
   _seekVisual(pos) {
     if (pos == null) return;
     if (this.top === 'canvas') { try { this.win.draw(this.getPos ? this.getPos() : pos); } catch (e) {} }
+    else if (this.st.mode === 'platform') this._platformLight(pos);
     else if (this.st?.mode === 'video' && this.st.video) {
       const it = this.plan.items[this.cur], d = this.st.video.duration;
       if (it && d && Number.isFinite(d) && d > 0) {
@@ -259,7 +272,13 @@ export class WindowStage {
   _prepStation(n) {
     const it = this.plan.items[n], S = this.st, v = S.video, tok = S.tok = (S.tok || 0) + 1; S.item = n; S.ready = false; S.mode = 'still';
     S.img.src = this.url(it.still || ''); S.img.classList.remove('kb');
-    if (!it.clip || this.failed?.has(it.clip)) return (S.prep = Promise.resolve(false));
+    S.img.style.filter = '';
+    if (!it.clip) {
+      v.classList.remove('on');
+      v.pause();
+      return S.prep = S.img.decode().then(() => false, () => false);
+    }
+    if (this.failed?.has(it.clip)) return (S.prep = Promise.resolve(false));
     return S.prep = new Promise((resolve) => {
       let done = false;
       const fin = (ok, hard) => {
@@ -300,9 +319,14 @@ export class WindowStage {
       if (S.item === n && !S.ready && S.prep) await S.prep;
       if (my !== this.token) return;
       if (S.ready) { S.mode = 'video'; S.video.classList.add('on'); S.img.classList.remove('kb'); S.video.currentTime = ((pos ?? this.getPos()) - it.start + S.video.duration) % S.video.duration || 0; const p = S.video.play(); if (p?.catch) p.catch(() => {}); }
+      else if (!it.clip) {
+        S.mode = 'platform';
+        this._platformLight(pos ?? this.getPos());
+      }
       else { S.mode = 'kenburns'; S.video.removeAttribute('src'); try { S.video.load(); } catch (e) {} void S.img.offsetWidth; S.img.classList.add('kb'); }
-      this.top = 'video';
-      reveal(S, C, () => { if (this.top === 'video') this.win.stop(); });
+      this.platformFrame.hidden = !!it.clip;
+      this.top = it.clip ? 'video' : 'station';
+      reveal(S, C, () => this.win.stop());
     }
     this.log.push({ id: it.id, kind: it.kind, mode: this.top === 'canvas' ? 'canvas' : S.mode, t: Date.now() });
   }

@@ -29,7 +29,19 @@ export class WindowRenderer {
     this._buildDistance();
     this.stripOrigins = new Map();
     this.vistaEnds = new Map();
+    this.layerOrigins = new Map();
+    let previous;
     for (const item of plan.items) {
+      const scene = item.scene;
+      if (scene && !this.layerOrigins.has(scene)) {
+        const origins = {};
+        for (const key of ['mid', 'near']) {
+          origins[key] = previous && previous[key] === scene[key]
+            ? this.layerOrigins.get(previous)[key] : this.dist(item.start);
+        }
+        this.layerOrigins.set(scene, origins);
+      }
+      previous = scene;
       if (item.scene?.panBackdrop) this.vistaEnds.set(item.scene, this.dist(item.end));
       if (item.scene?.paintedStrips && !this.stripOrigins.has(item.scene)) {
         this.stripOrigins.set(item.scene, this.dist(item.start));
@@ -142,7 +154,8 @@ export class WindowRenderer {
         const src = scene[key];
         if (!src) return;
         const painted = scene.paintedStrips;
-        const distance = painted ? F - this.stripOrigins.get(scene) : F;
+        const origin = this.layerOrigins.get(scene)?.[key] ?? this.stripOrigins.get(scene);
+        const distance = painted ? F - origin : F;
         if (key === 'backdrop' && scene.panBackdrop) {
           const plate = this._img(src);
           if (!plate.ok) return;
