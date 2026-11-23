@@ -1,5 +1,5 @@
 const BASE = new URL('../themes/pirate-voyage/', import.meta.url);
-export const voyageSeconds = 52;
+export const voyageSeconds = 104;
 const clamp = x => Math.max(0, Math.min(1, x));
 function ease(x) { x = clamp(x); return x * x * (3 - 2 * x); }
 
@@ -9,7 +9,23 @@ function waterSurface(image) {
   const surface = document.createElement('canvas');
   surface.width = 1280; surface.height = 720;
   const gl = surface.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true });
-  if (!gl) return null;
+  if (!gl) {
+    const ctx=surface.getContext('2d');
+    return t => {
+      const w=surface.width, h=surface.height;
+      ctx.drawImage(image,0,0,w,h);
+      for (let y=h/2; y<h; y+=3) {
+        const d=(2*y-h)/h, range=3.7/Math.max(.014,d);
+        const swell=Math.sin(.63*range-.81*t);
+        const cross=Math.sin(.46*range-1.08*t);
+        const sourceY=(y/h+d*(.29*swell+.13*cross)*.069)*image.height;
+        const shift=d*(8*swell+4*cross);
+        ctx.drawImage(image,0,Math.max(0,Math.min(image.height-5,sourceY)),image.width,4,
+          -14+shift,y,w+28,3.1);
+      }
+      return surface;
+    };
+  }
   function shader(type, source) {
     const sh = gl.createShader(type);
     gl.shaderSource(sh, source); gl.compileShader(sh);
@@ -23,14 +39,26 @@ function waterSurface(image) {
     void main(){
       vec2 q=uv;
       float d=clamp((q.y-.50)*2.,0.,1.);
-      float depth=d*d;
-      float swell=sin(q.x*13.+d*17.-time*1.55)+.54*sin(q.x*8.-d*21.+time*1.11);
-      float chop=sin(q.x*44.+d*63.-time*3.1);
-      q.y+=d*(.009*swell+.0027*chop);
-      q.x+=depth*(time*.009+.011*cos(d*24.-time*1.6)+.005*sin(q.x*21.+time*1.2));
+      // Intersect the sightline with the sea plane. A metre of swell
+      // occupies many pixels by the rail and a fraction of one at the horizon.
+      float range=3.7/max(.014,d);
+      vec2 world=vec2((q.x-.5)*range*2.6+time*.34,range);
+      vec2 k1=vec2(.39,.63), k2=vec2(-.78,.46), k3=vec2(1.72,.94);
+      float longWave=dot(world,k1)-time*.81;
+      float crossWave=dot(world,k2)-time*1.08;
+      float ripple=dot(world,k3)-time*1.62;
+      float amplitude=smoothstep(.012,.13,d);
+      float height=.29*sin(longWave)+.13*sin(crossWave)+.045*sin(ripple);
+      vec2 slope=.29*k1*cos(longWave)+.13*k2*cos(crossWave)+.045*k3*cos(ripple);
+      q.y+=amplitude*d*height*.069;
+      q.x+=d*(time*.0016+.009*slope.x);
       q.x=1.-abs(mod(q.x,2.)-1.);
       vec3 col=texture2D(sea,q).rgb;
-      gl_FragColor=vec4(col*(1.+d*.024*swell),1.);
+      float facing=dot(slope,vec2(-.45,.84));
+      col*=1.+amplitude*(.10*facing+.035*height);
+      col+=vec3(.030,.036,.039)*amplitude*smoothstep(.045,.32,facing);
+      gl_FragColor=vec4(col,1.);
+
     }`));
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
@@ -50,7 +78,7 @@ function waterSurface(image) {
 }
 
 export async function voyageScene(canvas) {
-  const [sea, harbor, merchant, rail] = await Promise.all(['sea','harbor','merchant','rail'].map(async name => {
+  const [sea, harbor, merchant, rail, shrouds] = await Promise.all(['sea','harbor','merchant','rail','shrouds'].map(async name => {
     const img = new Image(); img.src = new URL(name+'.webp',BASE); await img.decode(); return img;
   }));
   canvas.width=1280; canvas.height=720;
@@ -65,30 +93,43 @@ export async function voyageScene(canvas) {
     }
     c.drawImage(img,0,-h,width,h); c.restore();
   }
+  // A misted headland beyond the port provides a distant reference as the
+  // waterfront slips astern. Render the ridge once at its native depth.
+  const land = document.createElement('canvas');
+  land.width=2400; land.height=80;
+  const coast=land.getContext('2d');
+  coast.beginPath(); coast.moveTo(0,80);
+  for (let x=0;x<=2400;x+=3) {
+    const envelope=1-ease((x-1650)/750);
+    const shape=29+11*Math.sin(x*.003)+6*Math.sin(x*.009)+2*Math.sin(x*.043);
+    coast.lineTo(x,80-envelope*shape);
+  }
+  coast.lineTo(2400,80); coast.closePath();
+  const haze=coast.createLinearGradient(0,25,0,80);
+  haze.addColorStop(0,'rgba(94,113,120,.58)'); haze.addColorStop(1,'rgba(132,144,146,.49)');
+  coast.fillStyle=haze; coast.fill();
+
   return t => {
-    const open=ease((t-5)/21);
-    const swell=Math.sin(t*1.03+.15*Math.sin(t*.31));
-    const cross=Math.sin(t*.72+1.1);
-    const roll=(.31+.69*open)*(.022*swell+.010*cross+.0028*Math.sin(t*2.4));
-    const lift=(.35+.65*open)*(7*Math.sin(t*1.03-.8)+3.2*cross+1.1*Math.sin(t*2.9));
+    const route=t/2;
+    const open=ease((route-5)/21);
+    const swell=Math.sin(t*.68+.16*Math.sin(t*.23));
+    const cross=Math.sin(t*.47+1.1);
+    const roll=(.30+.70*open)*(.019*swell+.009*cross+.0018*Math.sin(t*1.7));
+    const lift=(.35+.65*open)*(6*Math.sin(t*.68-.8)+3*cross);
+    const lean=3*Math.sin(t*.68-.5)+1.8*cross;
     c.save(); c.translate(640,354+lift); c.rotate(roll); c.translate(-640,-354);
-    const surface = water ? water(t) : sea;
+    const surface=water(t);
     c.drawImage(surface,-52,-30,1384,780);
-    if (!water) {
-      for (let y=360;y<750;y+=3) {
-        const d=(y-360)/390, shift=d*10*Math.sin(t*1.55+y*.04);
-        c.drawImage(sea,0,(y+30)/780*sea.height,sea.width,3/780*sea.height,-52+shift,y,1384,3.4);
-      }
-    }
-    const depart=clamp(t/31);
+    c.drawImage(land,-550-route*40,281,2400,80);
+    const depart=clamp(route/31);
     const width=2030-380*depart;
-    vessel(harbor,-360-50*t-0.43*t*t,379-13*depart,width,0,true);
+    vessel(harbor,-360-50*route-0.43*route*route+lean*.3,379-13*depart,width,0,true);
     // Opposing course. The merchant rises on a different swell from our deck.
-    const x=1480-(t-14)*53;
+    const x=1480-(route-14)*53;
     const proximity=Math.exp(-Math.pow((x-485)/820,2));
     const w=245+190*proximity;
-    const bob = 374 + 30*proximity + 2.8*Math.sin(t*.94+2);
-    const heel = .016*Math.sin(t*.91+.8);
+    const bob = 374 + 30*proximity + 3.4*Math.sin(t*.72+2);
+    const heel = .012*Math.sin(t*.62+.8);
     vessel(merchant,x,bob-w*.5*heel,w,heel,true);
     // Waves cross in front of the hull. Their crest follows the waterline
     // as the vessel heels, and a short broken wake trails from the stern.
@@ -112,7 +153,11 @@ export async function voyageScene(canvas) {
     c.restore();
     // The viewer is braced against the rail. All apparent roll belongs to the world.
     const rh=1290*rail.height/rail.width;
-    c.drawImage(rail,-5,720-rh+18,1290,rh);
+    c.drawImage(rail,-5+lean*.5,720-rh+18+lift*.12,1290,rh);
+    // The shrouds hang closer to the viewer than the rail. A small body lean
+    // changes the gap between them while the same horizon stays in view.
+    const shroudHeight=754, shroudWidth=shroudHeight*shrouds.width/shrouds.height;
+    c.drawImage(shrouds,1280-shroudWidth+24+lean*1.45,-12+lift*.28,shroudWidth,shroudHeight);
     c.strokeStyle='rgba(194,207,212,.14)'; c.lineWidth=.8; c.beginPath();
     for (let i=0;i<83;i++) {
       const x=(i*317.63-t*(61+i%7)+12800)%1300;
