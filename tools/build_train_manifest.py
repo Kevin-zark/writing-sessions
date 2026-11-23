@@ -65,7 +65,7 @@ m = {
  'status': 'published', 'owner': 'kevin', 'origin': {'type': 'owner', 'requestId': None, 'requestedBy': None},
  'createdAt': '2026-11-21', 'version': 3,
  'designedFor': {'sprintMin': 25, 'breakMin': 5, 'sprints': 4, 'intro': True, 'outro': True},
- 'render': {'type': 'window', 'sway': False, 'bridge': 'zones/city/dock-bridge.webp', 'objectPosition': '50% 50%', 'size': [1280, 720], 'frame': {'src': 'frame/overlay.png', 'pane': json.load(open(os.path.join(T, 'frame', 'pane.json')))}},
+ 'render': {'type': 'window', 'sway': False, 'crossings': {'bridge': 'zones/city/dock-bridge.webp', 'gardenWall': 'zones/city/garden-wall.webp'}, 'objectPosition': '50% 50%', 'size': [1280, 720], 'frame': {'src': 'frame/overlay.png', 'pane': json.load(open(os.path.join(T, 'frame', 'pane.json')))}},
  'style': {'camera': 'Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame', 'interior': 'Dark mahogany panels, bottle-green velvet curtains tied back at both edges, brass sconce upper left, leather book + teacup on the ledge',
            'palette': 'Warm amber interior vs cool desaturated exterior', 'lens': '35mm, light film grain, painterly cinematic realism', 'motion': 'Exterior is procedural parallax behind the frame: always moving, landmarks slide past once', 'reference': 'stills/master reference kept in the theme workspace'},
  'ambienceLib': ambLib,
@@ -80,7 +80,8 @@ for li, g in enumerate(LEGS):
     a, b = stations[li][0], stations[li + 1][0]; z = g['zone']; segs = []
     if z == 'city':
         segs.append({'id': 'industrial-docks', 'title': 'Ravensgate industrial docks', 'backdrop': 'zones/city/docks-bg.webp', 'mid': 'zones/city/docks-mid.webp', 'near': 'zones/city/docks-fg.webp', 'paintedStrips': True, 'exitCut': 'bridge', 'introViewSeconds': 60, 'fog': {'color': '#879ba3', 'far': 0.46, 'near': 0.3}})
-        segs.append({'id': 'victorian-terraces', 'title': 'Victorian terraces', 'backdrop': 'zones/city/terraces-bg.webp', 'mid': 'zones/city/terraces-mid.webp', 'near': 'zones/city/terraces-fg.webp', 'paintedStrips': True, 'fog': {'color': '#9b9d9b', 'far': 0.4, 'near': 0.16}})
+        segs.append({'id': 'victorian-terraces', 'exitCut': 'gardenWall', 'title': 'Victorian terraces', 'backdrop': 'zones/city/terraces-bg.webp', 'mid': 'zones/city/terraces-mid.webp', 'near': 'zones/city/terraces-fg.webp', 'paintedStrips': True, 'fog': {'color': '#9b9d9b', 'far': 0.4, 'near': 0.16}})
+        segs.append({'id': 'wealthy-quarter', 'title': 'The wealthy quarter', 'backdrop': 'zones/city/rich-skyline.webp', 'mid': 'zones/city/rich-houses.webp', 'near': 'zones/city/rich-gardens.webp', 'paintedStrips': True, 'fog': {'color': '#a0a09a', 'far': 0.45, 'near': 0.19}})
     for sid, st, bd, md, lm, amb, wx, at in g['segs']:
         if lm == 'tunnel': L_ = {'type': 'tunnel', 'dur': 24, 'at': at, 'ambience': [L('tunnel', .9), L('wind_high', 0), L('train', .6)]}   # extra layers only while the tunnel passes
         else: w, h = LM[f'{z} {lm}']; L_ = {'src': f'zones/{z}/{lm}.jpg', 'w': w, 'h': h, 'dur': 26, 'at': at, 'height': .85, 'base': .95}

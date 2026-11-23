@@ -23,6 +23,7 @@ export class WindowRenderer {
     const [W, H] = this.cfg.size; canvas.width = W; canvas.height = H; this.W = W; this.H = H;
     this.c = canvas.getContext('2d', { alpha: false });
     this.pane = render.frame.pane; this.imgs = new Map(); this.fogTex = {};
+    this.crossings = render.crossings || { bridge: render.bridge };
     this.frame = this._img(render.frame.src);
     this.idx = -1; this.run = false;
     this._buildDistance();
@@ -62,7 +63,7 @@ export class WindowRenderer {
     img.onload = () => { e.ok = true; }; img.onerror = () => { e.err = true; };
     img.src = this.base + src; return e;
   }
-  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, s.exitCut === 'bridge' && this.cfg.bridge].filter(Boolean); }
+  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, this.crossings[s.exitCut]].filter(Boolean); }
   /** Which cruise item is current; preloads its assets and the next few, frees the rest. */
   setItem(idx) {
     this.idx = idx; const items = this.plan.items, want = new Set([this.cfg.frame?.src, this.frame?.src]);
@@ -121,9 +122,9 @@ export class WindowRenderer {
     const c = this.c, P = this.pane, S = it.scene, F = this.dist(pos), sp = this.speedNow(pos), sc = this.cfg.speeds;
     const prevIt = items[this.idx - 1];
     const nextIt = items[this.idx + 1];
-    const enteringFromBridge = prevIt?.scene?.exitCut === 'bridge' && prevIt.scene !== S;
-    const approachingBridge = S.exitCut === 'bridge' && nextIt?.kind === 'cruise' && nextIt.scene !== S;
-    const pv = !enteringFromBridge && prevIt && prevIt.kind === 'cruise' && prevIt.scene && prevIt.scene !== it.scene && Math.abs(prevIt.end - it.start) < 0.5 ? prevIt.scene : null;   // zone/segment change with no station between: cross-fade
+    const arriving = prevIt?.scene !== S && this.crossings[prevIt?.scene?.exitCut];
+    const departing = nextIt?.kind === 'cruise' && nextIt.scene !== S && this.crossings[S.exitCut];
+    const pv = !arriving && prevIt && prevIt.kind === 'cruise' && prevIt.scene && prevIt.scene !== it.scene && Math.abs(prevIt.end - it.start) < 0.5 ? prevIt.scene : null;   // zone/segment change with no station between: cross-fade
     const a = pv ? smooth((pos - it.start) / this.cfg.xfade) : 1;
     const ph = (id) => hash(id.length * 31 + id.charCodeAt(0) * 7 + id.charCodeAt(id.length - 1) * 13);
     c.fillStyle = '#0b0b0c'; c.fillRect(0, 0, this.W, this.H);
@@ -158,9 +159,8 @@ export class WindowRenderer {
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)
     if (lm && lm.type === 'tunnel') this._tunnel(it, lm, pos);
-    if (approachingBridge || enteringFromBridge) {
-      this._bridge(pos - (approachingBridge ? it.end : it.start));
-    }
+    if (arriving) this._crossing(arriving, pos - it.start);
+    if (departing) this._crossing(departing, pos - it.end);
     // light: slow cloud drift + glass vignette
     c.fillStyle = `rgba(0,0,0,${0.05 + 0.05 * Math.sin(pos * 0.047)})`; c.fillRect(P.x, P.y, P.w, P.h);
     const g = c.createRadialGradient(P.x + P.w / 2, P.y + P.h / 2, P.h * 0.35, P.x + P.w / 2, P.y + P.h / 2, P.w * 0.62);
@@ -170,15 +170,15 @@ export class WindowRenderer {
   }
 
   // Offset is relative to the shared item boundary, so either scene draws the
-  // same piece of bridge at the same time, including during a reverse seek.
-  _bridge(offset) {
+  // same part of the crossing at the same time, including during a reverse seek.
+  _crossing(src, offset) {
     const pane = this.pane;
-    const width = pane.w * 4.6; // the solid middle 31% spans the pane throughout the scene swap
+    const width = pane.w * 10; // 68.8% solid masonry travels 5.88 pane widths during seven seconds of full cover
     const left = pane.x + (pane.w - width) / 2 - offset * pane.w * 0.84;
     if (left >= pane.x + pane.w || left + width <= pane.x) return;
-    const bridge = this._img(this.cfg.bridge);
-    if (!bridge?.ok) return;
-    this.c.drawImage(bridge.img, left, pane.y - 2, width, pane.h + 4);
+    const plate = this._img(src);
+    if (!plate?.ok) return;
+    this.c.drawImage(plate.img, left, pane.y - 2, width, pane.h + 4);
   }
 
   _landmarkWindow(it) { return it.lmWin || null; }     // fixed by the planner (journey.js)

@@ -24,7 +24,10 @@
  "render": {
   "type": "window",
   "sway": false,
-  "bridge": "zones/city/dock-bridge.webp",
+  "crossings": {
+   "bridge": "zones/city/dock-bridge.webp",
+   "gardenWall": "zones/city/garden-wall.webp"
+  },
   "objectPosition": "50% 50%",
   "size": [
    1280,
@@ -422,6 +425,7 @@
     },
     {
      "id": "victorian-terraces",
+     "exitCut": "gardenWall",
      "title": "Victorian terraces",
      "backdrop": "zones/city/terraces-bg.webp",
      "mid": "zones/city/terraces-mid.webp",
@@ -431,6 +435,19 @@
       "color": "#9b9d9b",
       "far": 0.4,
       "near": 0.16
+     }
+    },
+    {
+     "id": "wealthy-quarter",
+     "title": "The wealthy quarter",
+     "backdrop": "zones/city/rich-skyline.webp",
+     "mid": "zones/city/rich-houses.webp",
+     "near": "zones/city/rich-gardens.webp",
+     "paintedStrips": true,
+     "fog": {
+      "color": "#a0a09a",
+      "far": 0.45,
+      "near": 0.19
      }
     },
     {
