@@ -26,6 +26,12 @@ export class WindowRenderer {
     this.frame = this._img(render.frame.src);
     this.idx = -1; this.run = false;
     this._buildDistance();
+    this.stripOrigins = new Map();
+    for (const item of plan.items) {
+      if (item.scene?.paintedStrips && !this.stripOrigins.has(item.scene)) {
+        this.stripOrigins.set(item.scene, this.dist(item.start));
+      }
+    }
   }
 
   // ---------- distance travelled (continuous across legs; zero while stopped at a station) ----------
@@ -128,21 +134,26 @@ export class WindowRenderer {
     c.translate(0, swayY);
     // backdrop (+ cross-fade to the previous one while it changes)
     const layer = (key, speed, comp, shift = 0) => {
-      const cur = S[key], old = pv && pv[key] !== cur ? pv[key] : null;
-      if (comp === 'source-over') { if (old) this._tile(this._img(old), speed, F, ph(old), 1, comp, shift); this._tile(this._img(cur), speed, F, ph(cur || 'x'), old ? a : 1, comp, shift); }
-      else { if (old) this._tile(this._img(old), speed, F, ph(old), 1 - a, comp, shift); this._tile(this._img(cur), speed, F, ph(cur || 'x'), old ? a : 1, comp, shift); }
+      const changing = pv && (pv[key] !== S[key] || pv.paintedStrips !== S.paintedStrips);
+      const paint = (scene, alpha) => {
+        const src = scene[key];
+        if (!src) return;
+        const painted = scene.paintedStrips;
+        const distance = painted ? F - this.stripOrigins.get(scene) : F;
+        this._tile(this._img(src), speed, distance, painted ? 0 : ph(src), alpha,
+          painted ? 'source-over' : comp, painted ? 0 : shift);
+      };
+      if (changing) paint(pv, key === 'backdrop' ? 1 : 1 - a);
+      paint(S, changing ? a : 1);
     };
-    if (S.paintedStrips) this._tile(this._img(S.backdrop), sc.backdrop, F, 0, 1, 'source-over');
-    else layer('backdrop', sc.backdrop, 'source-over');
+    layer('backdrop', sc.backdrop, 'source-over');
     const fg = S.fog || {}; const fogC = fg.color || '#aab4c4';
     this._fog(fogC, (fg.far ?? 0.35), sc.fogFar, F, 0.13, 0.28, 0.7);
-    if (S.paintedStrips) this._tile(this._img(S.mid), sc.mid, F, 0, 1, 'source-over');
-    else layer('mid', sc.mid, 'multiply');
+    layer('mid', sc.mid, 'multiply');
     // landmark pass-by: slides across the pane once
     const lm = S.landmark; if (lm) this._landmark(it, lm, pos, F, sc);
     this._fog(fogC, (fg.near ?? 0.28), sc.fogNear, F, 0.61, 0.5, 0.62);
-    if (S.paintedStrips) this._tile(this._img(S.near), sc.near, F, 0, 1, 'source-over');
-    else layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * swaySpeed);
+    layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * swaySpeed);
     // weather
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)

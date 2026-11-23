@@ -421,6 +421,19 @@
      }
     },
     {
+     "id": "victorian-terraces",
+     "title": "Victorian terraces",
+     "backdrop": "zones/city/terraces-bg.webp",
+     "mid": "zones/city/terraces-mid.webp",
+     "near": "zones/city/terraces-fg.webp",
+     "paintedStrips": true,
+     "fog": {
+      "color": "#9b9d9b",
+      "far": 0.4,
+      "near": 0.16
+     }
+    },
+    {
      "id": "c1",
      "title": "Rooftops in the fog · the cathedral",
      "backdrop": "zones/city/b1.jpg",
