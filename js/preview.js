@@ -99,6 +99,7 @@ async function play(i) {
   playing = i; document.querySelectorAll('.row').forEach(el => el.style.background = +el.dataset.i === i ? '#1d1a14' : '');
   await ensureCtx();
   if (live) { live.r.stop(); live = null; }
+  if (m.render?.type==='voyage') return playPassage(r,i);
   if (r.kind === 'cruise') return playCruise(r);
   $('#cv').style.display = 'none'; $('#vid').style.display = '';
   const v = $('#vid'); $('#still').src = base + r.still;
@@ -121,4 +122,38 @@ function playCruise(r) {
   $('#spd').textContent = 'Speed ×1'; rr.start(() => live.pos());
   $('#cap').textContent = `${r.title} · cruise${win ? ` · landmark passes at ${Math.round(win[0])}–${Math.round(win[1])} s` : ''}`;
   $('#still').src = base + r.still; setMix(r.amb);
+}
+
+let seaPreview;
+async function playPassage(row,index) {
+  const canvas=$('#cv');
+  $('#vid').pause(); $('#vid').style.display='none'; canvas.style.display='';
+  seaPreview ||= import('./voyage.js').then(module=>module.voyageScene(canvas,new URL(base,document.baseURI)));
+  const draw=await seaPreview;
+  if (playing!==index) return;
+  const station=m.stations.findIndex(s=>s.id===row.key);
+  const leg=station>=0 ? Math.max(0,station-1) : m.legs.findIndex(l=>l.id===row.leg.id);
+  const views=m.legs[leg].segments;
+  const view=views.findIndex(v=>v.id===row.key);
+  const duration=1500/views.length;
+  const start=station>=0 ? (station===0 ? 0 : 1500) : duration*view;
+  const events=(m.legs[leg].cues||[]).map(c=>1500*c.at);
+  let raf;
+  const item=live={mult:1,off:0,t0:performance.now(),
+    pos(){return this.off+(performance.now()-this.t0)/1000*this.mult;},
+    r:{stop(){cancelAnimationFrame(raf);}}};
+  function paint() {
+    if (live!==item) return;
+    const elapsed=item.pos(), t=start+elapsed;
+    if (chainMode && elapsed>(station>=0 ? 12 : duration)) {
+      const next=rows.findIndex((r,i)=>i>index && r.key);
+      if (next>=0) { play(next); return; }
+      stop();return;
+    }
+    draw(station>=0 ? start : Math.min(1500,t),leg,t,station>=0,events);
+    raf=requestAnimationFrame(paint);
+  }
+  $('#spd').textContent='Speed ×1';
+  $('#cap').textContent=row.title;
+  setMix(row.amb);paint();
 }

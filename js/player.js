@@ -1,6 +1,7 @@
 import { buildTimeline, locate, planScenes, sceneAt, fmtClock } from './engine.js';
 import { SessionAudio } from './audio.js';
 import { SceneStage, JourneyStage, WindowStage } from './scenes.js';
+import { VoyageStage } from './voyage-stage.js';
 import { planJourney, itemAt, legAt } from './journey.js';
 
 class Clock {
@@ -70,7 +71,9 @@ export class Player {
       hud: q('.hud'), label: q('.hud-label'), scene: q('.hud-scene'), clock: q('.hud-clock'), bar: q('.bar i'), controls: q('.controls'),
       scrub: q('.route-scrubber input'), elapsed: q('.route-scrubber output'), play: q('.play'), prep: q('.prep'), confirm: q('.confirm'), badge: q('.speedbadge') };
     if (this.speed !== 1) this.el.badge.textContent = '×' + this.speed;
-    this.stage = this.v2 && this.m.render?.type === 'window'
+    this.stage = this.v2 && this.m.render?.type === 'voyage'
+      ? new VoyageStage(this.el.stage,this.plan,this.base,()=>this.clock.pos(),this.m.legs)
+      : this.v2 && this.m.render?.type === 'window'
       ? new WindowStage(this.el.stage, this.plan, this.base, { speed: this.speed, render: this.m.render, legs: this.plan.chain?.legs, getPos: () => this.clock.pos() })
       : this.v2
       ? new JourneyStage(this.el.stage, this.plan, this.base, { speed: this.speed, objectPosition: this.m.frame?.objectPosition })
@@ -136,6 +139,7 @@ export class Player {
       const l0 = legAt(this.plan, 0), legs = this.m.legs;
       // decode only the layers the first views need; the rest decode one by one in the background (iOS memory)
       const first = []; for (const it of this.plan.items.slice(0, 8)) for (const l of (it.ambience || [])) if (!first.includes(l.layer)) first.push(l.layer);
+      for (const leg of legs) for (const cue of leg.cues || []) if (!first.includes(cue.layer)) first.push(cue.layer);
       const [amb, pool] = await Promise.all([
         a.loadAmbienceLib(this.m.ambienceLib, this.base, first),
         a.loadMusicPool(legs[l0].id, legs[l0].music, this.base),

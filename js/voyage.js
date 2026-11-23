@@ -1,5 +1,9 @@
 const BASE = new URL('../themes/pirate-voyage/', import.meta.url);
-export const voyageSeconds = 104;
+export const voyageSeconds = 104; // Standalone Ravensgate departure excerpt
+const legSeconds=1500;
+const ports=['port','haven','post','beach'];
+const between=(x,a,b)=>ease((x-a)/(b-a));
+const arc=(x,a,b,c,d)=>between(x,a,b)*(1-between(x,c,d));
 const clamp = x => Math.max(0, Math.min(1, x));
 function ease(x) { x = clamp(x); return x * x * (3 - 2 * x); }
 
@@ -11,16 +15,16 @@ function waterSurface(image) {
   const gl = surface.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true });
   if (!gl) {
     const ctx=surface.getContext('2d');
-    return t => {
+    return (t,distance) => {
       const w=surface.width, h=surface.height;
       ctx.drawImage(image,0,0,w,h);
-      const age=t%6, other=(t+3)%6, focus=.61*w;
+      const age=distance%6, other=(distance+3)%6, focus=.61*w;
       for (const [seconds,opacity] of [[other,1],[age,1-Math.abs(age-3)/3]]) {
         ctx.globalAlpha=opacity;
         for (let y=h/2; y<h; y+=3) {
           const d=(2*y-h)/h, range=3.7/Math.max(.014,d);
           const ratio=range/(range+1.7*seconds);
-          const swell=Math.sin(.63*(range+t*1.7)-.81*t);
+          const swell=Math.sin(.63*(range+distance*1.7)-.81*t);
           const sourceY=(.5+(y/h-.5+d*.018*swell)*ratio)*image.height;
           ctx.drawImage(image,focus/w*(1-ratio)*image.width,Math.min(image.height-4,sourceY),
             image.width*ratio,4,0,y,w,3.1);
@@ -39,7 +43,7 @@ function waterSurface(image) {
   const program = gl.createProgram();
   gl.attachShader(program, shader(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}'));
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `precision highp float;
-    varying vec2 uv; uniform sampler2D sea; uniform float time;
+    varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock;
     // Reproject from a recent point along the track. Two overlapping
     // reference times keep photographic wave detail streaming past indefinitely.
     vec3 underway(vec2 q,float range,float age){
@@ -53,7 +57,7 @@ function waterSurface(image) {
       // Intersect the sightline with the sea plane. A metre of swell
       // occupies many pixels by the rail and a fraction of one at the horizon.
       float range=3.7/max(.014,d);
-      vec2 world=vec2((q.x-.61)*range*2.6,range+time*1.7);
+      vec2 world=vec2((q.x-.61)*range*2.6,range+distanceClock*1.7);
       vec2 k1=vec2(.39,.63), k2=vec2(-.78,.46), k3=vec2(1.72,.94);
       float longWave=dot(world,k1)-time*.81;
       float crossWave=dot(world,k2)-time*1.08;
@@ -64,8 +68,8 @@ function waterSurface(image) {
       q.y+=amplitude*d*height*.069;
       q.x+=d*.009*slope.x;
       q.x=1.-abs(mod(q.x,2.)-1.);
-      float age=mod(time,6.);
-      float other=mod(time+3.,6.);
+      float age=mod(distanceClock,6.);
+      float other=mod(distanceClock+3.,6.);
       vec3 traveling=mix(underway(q,range,other),underway(q,range,age),1.-abs(age-3.)/3.);
       vec3 col=mix(texture2D(sea,q).rgb,traveling,smoothstep(.005,.05,d));
       // Foam flecks on the water have fixed world coordinates. Nearby flecks
@@ -96,16 +100,72 @@ function waterSurface(image) {
   for (const param of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D,param,gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,image);
   const clock=gl.getUniformLocation(program,'time');
-  return t => { gl.uniform1f(clock,t); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
+  const distanceClock=gl.getUniformLocation(program,'distanceClock');
+  const render=(t,distance)=>{ gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
+  render.dispose=()=>gl.getExtension('WEBGL_lose_context')?.loseContext();
+  return render;
 }
 
-export async function voyageScene(canvas) {
-  const [sea, harbor, merchant, foredeck, foam] = await Promise.all(['sea','harbor','merchant','foredeck','wash'].map(async name => {
-    const img = new Image(); img.src = new URL(name+'.webp',BASE); await img.decode(); return img;
-  }));
+export async function voyageScene(canvas, base=BASE) {
+  const names=['sea','harbor','merchant','foredeck','wash','navy','sunny','port','isles','pirate','storm','haven','post','beach','map','maelstrom','sign','sunset'];
+  const art=Object.fromEntries(await Promise.all(names.map(async name=>{
+    const img=new Image(); img.src=new URL(name+'.webp',base); await img.decode(); return [name,img];
+  })));
+  const {sea,harbor,merchant,foredeck,wash:foam,navy,sunny}=art;
   canvas.width=1280; canvas.height=720;
   const c=canvas.getContext('2d',{alpha:false});
-  const water=waterSurface(sea);
+  const water=waterSurface(sea), warmWater=waterSurface(sunny), tempest=waterSurface(art.storm), eveningSea=waterSurface(art.sunset);
+  function lightDeck(filter) {
+    const plate=document.createElement('canvas');
+    plate.width=1280; plate.height=720;
+    const g=plate.getContext('2d'); g.filter=filter;
+    g.drawImage(foredeck,0,0,plate.width,plate.height); return plate;
+  }
+  const sunDeck=lightDeck('sepia(.22) saturate(1.24) brightness(1.18)');
+  const duskDeck=lightDeck('sepia(.35) saturate(1.3) brightness(.90)');
+  const wetDeck=lightDeck('saturate(.72) brightness(.69) contrast(1.12)');
+  const ocean=document.createElement('canvas');
+  ocean.width=1280; ocean.height=720;
+  const oceanCtx=ocean.getContext('2d');
+  function blendSea(t, distance, warm, storm, evening) {
+    if (evening>0) {
+      if (evening>=1) return eveningSea(t,distance);
+      oceanCtx.drawImage(warmWater(t,distance),0,0);
+      oceanCtx.globalAlpha=evening; oceanCtx.drawImage(eveningSea(t,distance),0,0); oceanCtx.globalAlpha=1;
+      return ocean;
+    }
+    if (storm>0) {
+      if (storm>=1) return tempest(t,distance);
+      oceanCtx.drawImage(warmWater(t,distance),0,0);
+      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance),0,0); oceanCtx.globalAlpha=1;
+      return ocean;
+    }
+    if (warm<=0) return water(t,distance);
+    if (warm>=1) return warmWater(t,distance);
+    oceanCtx.drawImage(water(t,distance),0,0);
+    oceanCtx.globalAlpha=warm; oceanCtx.drawImage(warmWater(t,distance),0,0); oceanCtx.globalAlpha=1;
+    return ocean;
+  }
+
+  function landfall(img, approach, t) {
+    if (approach<=0) return;
+    // A fixed waterfront viewed from a closing range, easing to rest off the quay.
+    const range=55+920*(1-approach)**1.4;
+    const scale=785/range, width=102*scale;
+    const x=630-13*scale-width/2, y=359+3.8*scale;
+    c.save(); c.globalAlpha=ease(approach*6);
+    vessel(art.isles,x-width*.43,y-1,width*1.8,0,false);
+    vessel(img,x,y,width,0,false);
+    const h=width*img.height/img.width;
+    for (let band=0;band<18;band++) {
+      const depth=band/18;
+      c.globalAlpha=ease(approach*6)*.20*(1-depth)**2;
+      const sh=Math.max(1,img.height/18);
+      c.drawImage(img,0,img.height-(band+1)*sh,img.width,sh,
+        x+Math.sin(t*1.6-band*.9)*depth*5,y+depth*h*.20,width,h*.20/18+1);
+    }
+    c.restore();
+  }
   function vessel(img,x,y,width,roll,reflection) {
     const h=width*img.height/img.width;
     c.save(); c.translate(x,y); c.rotate(roll);
@@ -149,7 +209,7 @@ export async function voyageScene(canvas) {
     }
   }
 
-  function bowWash(t,open) {
+  function bowWash(t,open,underwayWash) {
     // Each patch is shed at the stem and widens down the port side as it falls aft.
     for (let i=0;i<76;i++) {
       const age=(t*.23+i*.618034)%1;
@@ -157,34 +217,17 @@ export async function voyageScene(canvas) {
       const y=451+266*age*age;
       const x=795-1040*age*age+(22+78*age)*spread;
       const w=(24+118*age)*(1+.22*Math.sin(i*4.12));
-      c.globalAlpha=(.16+.30*open)*Math.sin(Math.PI*age)**.65;
+      c.globalAlpha=underwayWash*(.16+.30*open)*Math.sin(Math.PI*age)**.65;
       c.drawImage(foam,x-w/2,y,w,w*(.09+.12*age));
     }
     c.globalAlpha=1;
   }
 
-  return t => {
-    const route=t/2;
-    const open=ease((route-5)/21);
-    const swell=Math.sin(t*.68+.16*Math.sin(t*.23));
-    const cross=Math.sin(t*.47+1.1);
-    const roll=(.30+.70*open)*(.019*swell+.009*cross+.0018*Math.sin(t*1.7));
-    const lift=(.35+.65*open)*(6*Math.sin(t*.68-.8)+3*cross);
-    const lean=3*Math.sin(t*.68-.5)+1.8*cross;
-    c.save(); c.translate(640,354+lift); c.rotate(roll); c.translate(-640,-354);
-    const surface=water(t);
-    c.drawImage(surface,-52,-30,1384,780);
-    const travel=1.7*t;
-    // Kilometres beyond the quay, the distant ridge barely changes bearing.
-    c.drawImage(land,-1520-travel*.22,281,2400,80);
-    waterfront(travel);
-    // Opposing course. The merchant rises on a different swell from our deck.
-    const x=1480-(route-14)*53;
-    const proximity=Math.exp(-Math.pow((x-485)/820,2));
-    const w=245+190*proximity;
+  function passShip(image,x,w,proximity,t,surface,forward=false) {
+    if (x>1340 || x+w*1.5 < -52) return;
     const bob = 374 + 30*proximity + 3.4*Math.sin(t*.72+2);
     const heel = .012*Math.sin(t*.62+.8);
-    vessel(merchant,x,bob-w*.5*heel,w,heel,true);
+    vessel(image,x,bob-w*.5*heel,w,heel,true);
     // Waves cross in front of the hull. Their crest follows the waterline
     // as the vessel heels, and a short broken wake trails from the stern.
     if (x < 1332 && x+w*1.5 > -52) {
@@ -199,24 +242,162 @@ export async function voyageScene(canvas) {
       c.lineWidth=.9;
       for (let i=0;i<65;i++) {
         const u=(i/65+t*.35)%1, spread=Math.sin(i*61.27);
-        const px=x+w*(.91+u*.28), py=bob+w*.41*heel+u*(1+spread*3)+Math.sin(i+t);
+        const px=x+w*(forward ? .09-u*.28 : .91+u*.28), py=bob+w*.41*heel+u*(1+spread*3)+Math.sin(i+t);
         c.strokeStyle='rgba(202,215,210,'+(.24*(1-u))+')';
         c.beginPath(); c.moveTo(px,py); c.lineTo(px+2+u*3,py+.3); c.stroke();
       }
     }
+  }
+
+  function seaStacks(progress,a,b,t) {
+    if (progress<=a || progress>=b) return;
+    const u=(progress-a)/(b-a);
+    const w=460+240*Math.sin(Math.PI*u);
+    c.save(); c.globalAlpha=.64*arc(u,0,.13,.87,1);
+    vessel(art.isles,1000-1670*u,360+3*Math.sin(Math.PI*u),w,0,true);
+    c.restore();
+  }
+
+  const innerEye=document.createElement('canvas');
+  innerEye.width=innerEye.height=512;
+  const eye=innerEye.getContext('2d');
+  eye.drawImage(art.maelstrom,0,0,512,512);
+  eye.globalCompositeOperation='destination-in';
+  const fade=eye.createRadialGradient(256,256,45,256,256,180);
+  fade.addColorStop(0,'black');fade.addColorStop(1,'transparent');
+  eye.fillStyle=fade;eye.fillRect(0,0,512,512);
+
+  function whirlpool(p,t) {
+    const strength=arc(p,.45,.53,.70,.80);
+    if (!strength) return;
+    const u=between(p,.45,.79);
+    const x=675-900*u;
+    const radius=105+345*Math.sin(Math.PI*u);
+    const tilt=.10+.09*Math.sin(Math.PI*u);
+    const y=370+radius*tilt+24*Math.sin(Math.PI*u);
+    c.save(); c.translate(x,y); c.scale(1,tilt);
+    c.rotate(-t*.078); c.globalAlpha=strength*.94;
+    c.drawImage(art.maelstrom,-radius,-radius,2*radius,2*radius);
+    // Faster inner water winds around the eye independently of the outer foam.
+    c.rotate(-t*.10); c.globalAlpha=strength*.69;
+    c.drawImage(innerEye,-radius,-radius,2*radius,2*radius); c.restore();
+  }
+
+  function pirateRun(p,t,surface,race,events) {
+    const presence=race ? arc(p,.17,.34,.82,.93) : arc(p,.26,.39,.73,.85);
+    if (!presence) return;
+    const near=race ? between(p,.27,.68) : between(p,.30,.59);
+    const w=(race ? 220 : 340)*near+42;
+    const x=race ? 340+140*Math.sin(p*9)-620*between(p,.72,.92)
+                 : 1050-850*between(p,.26,.66)-590*between(p,.68,.86);
+    c.save(); c.globalAlpha=presence;
+    passShip(art.pirate,x,w,near,t,surface,true);
+    if (!race) for (const event of events) {
+      const age=t-event;
+      if (age<0 || age>14) continue;
+      const y=374+30*near;
+      for (let k=0;k<8;k++) {
+        const delay=k*.085, dt=age-delay;
+        if (dt<0) continue;
+        const cx=x+w*(.29+k*.055)-dt*(2+k*.22), cy=y-w*.08-dt*(1+k*.25);
+        const radius=3+Math.sqrt(dt)*(3.1+k*.31);
+        if (dt<.17) { c.fillStyle='rgba(255,216,134,.9)'; c.fillRect(cx-3,cy-2,6,3); }
+        const puff=c.createRadialGradient(cx,cy,0,cx,cy,radius);
+        puff.addColorStop(0,'rgba(205,199,178,'+(.54*(1-dt/15))+')');
+        puff.addColorStop(1,'rgba(169,168,157,0)'); c.fillStyle=puff;
+        c.fillRect(cx-radius,cy-radius,2*radius,2*radius);
+      }
+    }
+    c.restore();
+  }
+
+  const draw=(position,leg=0,t=position,atAnchor=false,events=[]) => {
+    const route=position/2, progress=clamp(position/legSeconds);
+    const warm=leg===0 ? between(progress,.40,.87) : 1;
+    const storm=leg===2 ? arc(progress,.06,.32,.67,.92) : 0;
+    const rain=leg===0 ? 1-between(progress,.40,.67) : storm;
+    const underway=atAnchor ? 0 : arc(progress,0,.025,.90,1);
+    const open=underway*(1-.77*warm+2.1*storm);
+    const swell=Math.sin(t*.68+.16*Math.sin(t*.23));
+    const cross=Math.sin(t*.47+1.1);
+    const roll=(.30+.70*open)*(.019*swell+.009*cross+.0018*Math.sin(t*1.7));
+    const lift=(.35+.65*open)*(6*Math.sin(t*.68-.8)+3*cross);
+    const lean=3*Math.sin(t*.68-.5)+1.8*cross;
+    c.save(); c.translate(640,354+lift); c.rotate(roll); c.translate(-640,-354);
+    const turn=leg===2 ? arc(progress,.46,.60,.70,.79) : 0;
+    c.translate(26*turn,0); c.rotate(.012*turn);
+    const evening=leg===3 ? between(progress,.37,.93) : 0;
+    // Integrate a linear acceleration and braking ramp on each passage.
+    const ramp=30;
+    const speedIntegral=position<ramp ? position*position/(2*ramp)
+      : position>legSeconds-ramp ? legSeconds-ramp-(legSeconds-position)**2/(2*ramp)
+      : position-ramp/2;
+    const distance=leg*(legSeconds-ramp)+speedIntegral;
+    const surface=blendSea(t,distance,warm,storm,evening);
+    c.drawImage(surface,-52,-30,1384,780);
+    const travel=1.7*speedIntegral;
+    // Kilometres beyond the quay, the distant ridge barely changes bearing.
+    if (leg===0) {
+      c.globalAlpha=1-between(progress,.22,.52);
+      c.drawImage(land,-1520-travel*.22,281,2400,80); c.globalAlpha=1;
+      if (position<100) waterfront(travel);
+    }
+    // Opposing course. The merchant rises on a different swell from our deck.
+    const x=1480-(route-14)*53;
+    const proximity=Math.exp(-Math.pow((x-485)/820,2));
+    if (leg===0) {
+      passShip(merchant,x,245+190*proximity,proximity,t,surface);
+      const approach=ease((progress-.14)/.17);
+      const navyX=910-455*approach-Math.max(0,progress-.31)*12400;
+      const near=ease((progress-.16)/.17);
+      if (progress>.14 && progress<.46) {
+        c.globalAlpha=ease((progress-.14)/.025);
+        passShip(navy,navyX,32+560*near,near,t+.9,surface);
+        c.globalAlpha=1;
+      }
+      seaStacks(progress,.48,.78,t);
+    } else {
+      landfall(art[ports[leg-1]],1-between(progress,0,.15),t);
+      if (leg===1 || leg===3) pirateRun(progress,t,surface,leg===3,events);
+      if (leg===2) whirlpool(progress,t);
+      seaStacks(progress,.12,.41,t);
+      seaStacks(progress,.57,.83,t);
+    }
+    const arrival=between(progress,leg===0 ? .64 : .76,1);
+    landfall(art[ports[leg]],arrival,t);
+    if (leg===3 && arrival>.66) {
+      const size=240*between(arrival,.66,1);
+      const w=size*art.sign.width/art.sign.height;
+      c.drawImage(art.sign,455-w/2,405-size,w,size);
+    }
     c.restore();
     c.save();
     c.translate(lean*.45, lift*.18);
-    bowWash(t,open);
-    c.drawImage(foredeck,-7,-5,1294,730);
+    c.save();
+    c.globalCompositeOperation='source-over';
+    if (underway>.001) { bowWash(t,open,underway); }
     c.restore();
-    c.strokeStyle='rgba(194,207,212,.14)'; c.lineWidth=.8; c.beginPath();
-    for (let i=0;i<83;i++) {
-      const x=(i*317.63-t*(61+i%7)+12800)%1300;
+    c.drawImage(foredeck,-7,-5,1294,730);
+    if (warm>0) { c.globalAlpha=warm; c.drawImage(sunDeck,-7,-5,1294,730); }
+    if (evening>0) { c.globalAlpha=evening; c.drawImage(duskDeck,-7,-5,1294,730); }
+    if (storm>0) { c.globalAlpha=storm; c.drawImage(wetDeck,-7,-5,1294,730); }
+    c.globalAlpha=1;
+    const chart=leg===2 ? between(progress,.985,1) : leg===3 ? 1-between(progress,.02,.10) : 0;
+    if (chart>0) {
+      c.save(); c.globalAlpha=chart; c.translate(1020,655+(1-chart)*85); c.rotate(-.16);
+      c.transform(1,0,-.27,.58,0,0); c.drawImage(art.map,-140,-80,280,175); c.restore();
+    }
+    c.restore();
+    c.globalAlpha=rain;
+    c.strokeStyle='rgba(194,207,212,'+(.19+.22*storm)+')'; c.lineWidth=.8; c.beginPath();
+    for (let i=0;i<83+145*storm;i++) {
+      const x=((i*317.63-t*(61+i%7))%1300+1300)%1300;
       const y=(i*191.71+t*(270+i%53))%742-12;
       c.moveTo(x,y); c.lineTo(x-2.2,y+8+i%6);
     }
-    c.stroke();
+    c.stroke(); c.globalAlpha=1;
   };
+  draw.dispose=()=>[water,warmWater,tempest,eveningSea].forEach(render=>render.dispose?.());
+  return draw;
 }
 

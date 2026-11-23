@@ -1,3 +1,4 @@
+import { passageCueTime } from './voyage-clock.js';
 import { FADE, buildMusicRuns, musicAt, busAt, layersAt, layerOffset, cosLerp, chimesFrom, lvlOf, wheelMotion, wheelPosition } from './sync.js';
 
 // Web Audio session soundtrack: synthesized chimes, music chain with dip-to-quiet fades,
@@ -653,6 +654,19 @@ export class SessionAudio {
     }
     this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} });
     this.chimeNodes = [];
+    for (const [legIndex,leg] of (this.legs || []).entries()) {
+      for (const cue of leg.cues || []) {
+        const buffer=this.lib?.[cue.layer]?.buf;
+        const time=passageCueTime(this.plan,legIndex,cue.at);
+        if (!buffer || time+buffer.duration<=pos) continue;
+        const src=c.createBufferSource(), gain=c.createGain();
+        src.buffer=buffer; src.playbackRate.value=this.speed;
+        gain.gain.value=cue.gain ?? 1; src.connect(gain); gain.connect(this.ambBus);
+        src.onended=()=>{ src.disconnect(); gain.disconnect(); };
+        src.start(T(Math.max(time,pos)),Math.max(0,pos-time));
+        this.chimeNodes.push(src);
+      }
+    }
     this.chimeLog = (this.chimeLog || []).filter(x => x.sessionT < pos);
     for (const ev of chimesFrom(pos, tl)) {
       const when = Math.max(T(ev.sessionT), t0 + 0.02);

@@ -1,10 +1,8 @@
 {
  "id": "pirate-voyage",
  "title": "The Pirate Voyage",
- "description": "Leave Ravensgate under gray skies and meet a merchant brig in the open chop.",
+ "description": "From rainy Ravensgate to the Caribbean, through pirate waters and a storm to the far side of the Seven Seas.",
  "cover": "cover.webp",
- "preview": "voyage.html",
- "previewDuration": 104,
  "credits": [
   {
    "kind": "ambience",
@@ -39,6 +37,939 @@
    "usedAs": [
     "blizzard",
     "wind_high"
+   ]
+  },
+  {
+   "kind": "ambience",
+   "title": "Soft rain on roof window",
+   "author": "Metadex",
+   "url": "https://freesound.org/s/235827/",
+   "license": "CC0 1.0",
+   "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "usedAs": [
+    "rain_glass"
+   ]
+  }
+ ],
+ "schema": 3,
+ "version": 2,
+ "render": {
+  "type": "voyage"
+ },
+ "accent": "#9ecbbf",
+ "intro": {
+  "lines": [
+   "The tide is turning at Ravensgate.",
+   "Take your place on the foredeck."
+  ]
+ },
+ "outro": {
+  "lines": [
+   "X marks a table for one.",
+   "Welcome to the Diner at the End of the Seven Seas."
+  ]
+ },
+ "breakText": [
+  "Palm shadows cross the quay. The ship is at anchor.",
+  "The shipwrights are patching the hull at the pirate haven.",
+  "A few coins buy the hermit’s chart. The red X is on Split Rock Beach."
+ ],
+ "breakEndText": "The lines are coming aboard.",
+ "ambienceLib": {
+  "sailing": {
+   "src": "under-sail.mp3",
+   "gain": 2
+  },
+  "shore": {
+   "src": "anchorage.mp3",
+   "gain": 1.25
+  },
+  "squall": {
+   "src": "gale.mp3",
+   "gain": 1.8
+  },
+  "repairs": {
+   "src": "shipwright.mp3",
+   "gain": 1.3
+  },
+  "volley": {
+   "src": "distant-volley.mp3",
+   "gain": 1
+  },
+  "rain": {
+   "src": "../dark-academia-train/audio/amb/rain_glass.mp3",
+   "gain": 2.3
+  }
+ },
+ "stations": [
+  {
+   "id": "port-0",
+   "title": "Ravensgate Roads",
+   "still": "cover.webp",
+   "ambience": [
+    {
+     "layer": "shore",
+     "gain": 0.9
+    }
+   ]
+  },
+  {
+   "id": "port-1",
+   "title": "Port Marigold",
+   "still": "cover.webp",
+   "ambience": [
+    {
+     "layer": "shore",
+     "gain": 0.9
+    }
+   ]
+  },
+  {
+   "id": "port-2",
+   "title": "Black Keel Haven",
+   "still": "cover.webp",
+   "ambience": [
+    {
+     "layer": "shore",
+     "gain": 0.9
+    },
+    {
+     "layer": "repairs",
+     "gain": 0.6
+    }
+   ]
+  },
+  {
+   "id": "port-3",
+   "title": "The hermit’s trading post",
+   "still": "cover.webp",
+   "ambience": [
+    {
+     "layer": "shore",
+     "gain": 0.9
+    }
+   ]
+  },
+  {
+   "id": "port-4",
+   "title": "The Diner at the End of the Seven Seas",
+   "still": "cover.webp",
+   "ambience": [
+    {
+     "layer": "shore",
+     "gain": 0.9
+    }
+   ]
+  }
+ ],
+ "legs": [
+  {
+   "id": "passage-1",
+   "title": "The Caribbean crossing",
+   "music": [],
+   "ambience": [
+    {
+     "layer": "sailing",
+     "gain": 1
+    }
+   ],
+   "segments": [
+    {
+     "id": "sea-1-1",
+     "title": "Leaving Ravensgate",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.72
+      },
+      {
+       "layer": "shore",
+       "gain": 0.32
+      },
+      {
+       "layer": "rain",
+       "gain": 0.55
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-2",
+     "title": "The outer roads",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0.78
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-3",
+     "title": "The Navy frigate",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0.85
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-4",
+     "title": "Rain on the weather bow",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0.65
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-5",
+     "title": "A break in the cloud",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0.38
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-6",
+     "title": "The trade winds",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0.15
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-7",
+     "title": "First sight of palms",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.88
+      },
+      {
+       "layer": "shore",
+       "gain": 0.25
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-1-8",
+     "title": "Port Marigold",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.6
+      },
+      {
+       "layer": "shore",
+       "gain": 0.78
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "passage-2",
+   "title": "The pursuit",
+   "music": [],
+   "ambience": [
+    {
+     "layer": "sailing",
+     "gain": 1
+    }
+   ],
+   "segments": [
+    {
+     "id": "sea-2-1",
+     "title": "Slipping the mooring",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.72
+      },
+      {
+       "layer": "shore",
+       "gain": 0.32
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-2",
+     "title": "Clear water",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-3",
+     "title": "A sail astern",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-4",
+     "title": "A dark pennant",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-5",
+     "title": "Closing on the port quarter",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-6",
+     "title": "The pirate volleys",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-7",
+     "title": "Running for shelter",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.88
+      },
+      {
+       "layer": "shore",
+       "gain": 0.25
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-2-8",
+     "title": "The repair quay",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.6
+      },
+      {
+       "layer": "shore",
+       "gain": 0.78
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      },
+      {
+       "layer": "repairs",
+       "gain": 0.48
+      }
+     ]
+    }
+   ],
+   "cues": [
+    {
+     "at": 0.64,
+     "layer": "volley",
+     "gain": 0.95
+    },
+    {
+     "at": 0.652,
+     "layer": "volley",
+     "gain": 0.95
+    },
+    {
+     "at": 0.667,
+     "layer": "volley",
+     "gain": 0.95
+    }
+   ]
+  },
+  {
+   "id": "passage-3",
+   "title": "The hermit’s chart",
+   "music": [],
+   "ambience": [
+    {
+     "layer": "sailing",
+     "gain": 1
+    }
+   ],
+   "segments": [
+    {
+     "id": "sea-3-1",
+     "title": "Out of Black Keel Haven",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.72
+      },
+      {
+       "layer": "shore",
+       "gain": 0.32
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-3-2",
+     "title": "The gathering squall",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0.25
+      }
+     ]
+    },
+    {
+     "id": "sea-3-3",
+     "title": "Under shortened sail",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0.75
+      }
+     ]
+    },
+    {
+     "id": "sea-3-4",
+     "title": "The gale",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 1
+      }
+     ]
+    },
+    {
+     "id": "sea-3-5",
+     "title": "The whirlpool",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 1
+      }
+     ]
+    },
+    {
+     "id": "sea-3-6",
+     "title": "Rounding the vortex",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0.94
+      }
+     ]
+    },
+    {
+     "id": "sea-3-7",
+     "title": "Water under the lee",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.88
+      },
+      {
+       "layer": "shore",
+       "gain": 0.25
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0.4
+      }
+     ]
+    },
+    {
+     "id": "sea-3-8",
+     "title": "The hermit’s chart",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.6
+      },
+      {
+       "layer": "shore",
+       "gain": 0.78
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "passage-4",
+   "title": "The race to Split Rock",
+   "music": [],
+   "ambience": [
+    {
+     "layer": "sailing",
+     "gain": 1
+    }
+   ],
+   "segments": [
+    {
+     "id": "sea-4-1",
+     "title": "The charted channel",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.72
+      },
+      {
+       "layer": "shore",
+       "gain": 0.32
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-2",
+     "title": "Through the keys",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-3",
+     "title": "A familiar sail",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-4",
+     "title": "Racing the pirates",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-5",
+     "title": "Side by side",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-6",
+     "title": "The last headland",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 1
+      },
+      {
+       "layer": "shore",
+       "gain": 0
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-7",
+     "title": "Split Rock Beach",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.88
+      },
+      {
+       "layer": "shore",
+       "gain": 0.25
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    },
+    {
+     "id": "sea-4-8",
+     "title": "X marks the spot",
+     "backdrop": "sea.webp",
+     "ambience": [
+      {
+       "layer": "sailing",
+       "gain": 0.6
+      },
+      {
+       "layer": "shore",
+       "gain": 0.78
+      },
+      {
+       "layer": "rain",
+       "gain": 0
+      },
+      {
+       "layer": "squall",
+       "gain": 0
+      }
+     ]
+    }
    ]
   }
  ]
