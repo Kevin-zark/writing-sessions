@@ -83,6 +83,16 @@ export class WindowRenderer {
     this.idx = idx; const items = this.plan.items, want = new Set([this.frame.src, this.cfg.glassReflection]);
     const seen = new Set(); for (let i = Math.max(0, idx - 1); i < items.length && seen.size < 3; i++) { if (items[i].kind !== "cruise") continue; seen.add(items[i].scene); this._assetsOf(items[i]).forEach(a => want.add(a)); }
     this._assetsOf(items[idx - 1]).forEach(a => want.add(a));
+    // Audio cues can split one landscape into several timeline items.
+    let first = idx, last = idx;
+    while (first > 0 && items[first - 1].scene === items[idx].scene) first--;
+    while (last + 1 < items.length && items[last + 1].scene === items[idx].scene) last++;
+    this.before = items[first - 1];
+    this.after = items[last + 1];
+    for (const neighbor of [this.before, this.after]) {
+      if (neighbor?.scene) want.add(neighbor.scene.backdrop);
+      else if (neighbor) want.add(this.cfg.stationApproaches?.[neighbor.id]);
+    }
     want.forEach(a => a && this._img(a));
     for (const [src, e] of this.imgs) if (!want.has(src) && src !== this.frame.src) { e.img.onload = e.img.onerror = null; e.img.src = ''; this.imgs.delete(src); }
   }
@@ -131,6 +141,80 @@ export class WindowRenderer {
     c.globalAlpha = 1;
   }
 
+  // Cache soft photographic edges at display resolution. The overlap occupies
+  // a fixed distance on the route, so both views move together across the glass.
+  _feathered(entry, width, height, left, right) {
+    const key = [width, height, left, right].join(',');
+    if (entry.edgeKey === key) return entry.edgeImage;
+    const surface = document.createElement('canvas');
+    surface.width = Math.ceil(width); surface.height = Math.ceil(height);
+    const ctx = surface.getContext('2d');
+    ctx.drawImage(entry.img, 0, 0, surface.width, surface.height);
+    ctx.globalCompositeOperation = 'destination-in';
+    const mask = ctx.createLinearGradient(0, 0, surface.width, 0);
+    mask.addColorStop(0, left ? 'transparent' : 'black');
+    if (left) mask.addColorStop(left / width, 'black');
+    if (right) mask.addColorStop(1 - right / width, 'black');
+    mask.addColorStop(1, right ? 'transparent' : 'black');
+    ctx.fillStyle = mask; ctx.fillRect(0, 0, surface.width, surface.height);
+    entry.edgeKey = key; entry.edgeImage = surface;
+    return surface;
+  }
+
+  _panorama(scene, distance, alpha) {
+    const P = this.pane, c = this.c, overlap = P.w * .32;
+    const geometry = s => {
+      const entry = this._img(s?.backdrop);
+      if (!entry?.ok) return null;
+      const scale = Math.max(P.w * 1.22 / entry.img.naturalWidth, P.h * 1.03 / entry.img.naturalHeight);
+      return { entry, w: entry.img.naturalWidth * scale, h: entry.img.naturalHeight * scale };
+    };
+    const current = geometry(scene);
+    if (!current) return;
+    const active = scene === this.plan.items[this.idx].scene;
+    const left = active && this.before?.scene?.panBackdrop && !this.before.scene.exitCut ? geometry(this.before.scene) : null;
+    const right = active && this.after?.scene?.panBackdrop && !scene.exitCut ? geometry(this.after.scene) : null;
+    const span = this.vistaEnds.get(scene) - this.stripOrigins.get(scene);
+    const progress = clamp01(distance / Math.max(1, span));
+    const startX = left ? (P.w - overlap) / 2 : 0;
+    const endX = (right ? (P.w + overlap) / 2 : P.w) - current.w;
+    // Match the velocity on both sides of each join, even when a broad city
+    // panorama meets a shorter plate. Hermite interpolation preserves the endpoints.
+    const travel = startX - endX;
+    const joinSlope = (neighbor, plate) => {
+      if (!plate) return 1;
+      const otherSpan = this.vistaEnds.get(neighbor.scene) - this.stripOrigins.get(neighbor.scene);
+      const rate = (current.w - overlap) / span;
+      const otherRate = (plate.w - overlap) / Math.max(1, otherSpan);
+      return (2 * rate * otherRate / (rate + otherRate)) * span / travel;
+    };
+    const u = progress, v = 1 - u;
+    const eased = smooth(u) + u * v * (v * joinSlope(this.before, left) - u * joinSlope(this.after, right));
+    const x = startX - travel * eased;
+    const paint = (plate, offset, feather) => {
+      if (offset >= P.w || offset + plate.w <= 0) return;
+      const source = feather ? this._feathered(plate.entry, plate.w, plate.h, overlap, 0) : plate.entry.img;
+      c.drawImage(source, P.x + offset, P.y - (plate.h - P.h) / 2, plate.w, plate.h);
+    };
+    c.globalAlpha = alpha;
+    if (left) paint(left, x - left.w + overlap, false);
+    paint(current, x, !!left);
+    if (right) paint(right, x + current.w - overlap, true);
+    c.globalAlpha = 1;
+  }
+
+  _platformPass(station, offset) {
+    const entry = this._img(this.cfg.stationApproaches?.[station?.id]);
+    if (!entry?.ok) return;
+    const P = this.pane, width = entry.img.naturalWidth * P.h / entry.img.naturalHeight;
+    const margin = Math.max(0, (width - P.w) / 2);
+    const x = P.x - margin + offset;
+    if (x >= P.x + P.w || x + width <= P.x) return;
+    const edge = Math.min(margin, P.w * .12);
+    const surface = this._feathered(entry, width, P.h, edge, edge);
+    this.c.drawImage(surface, x, P.y, width, P.h);
+  }
+
   draw(pos) {
     const items = this.plan.items; let it = items[this.idx]; if (!it || !it.scene) return;
     const c = this.c, P = this.pane, S = it.scene, F = this.dist(pos), sp = this.speedNow(pos), sc = this.cfg.speeds;
@@ -157,15 +241,7 @@ export class WindowRenderer {
         const origin = this.layerOrigins.get(scene)?.[key] ?? this.stripOrigins.get(scene);
         const distance = painted ? F - origin : F;
         if (key === 'backdrop' && scene.panBackdrop) {
-          const plate = this._img(src);
-          if (!plate.ok) return;
-          const span = this.vistaEnds.get(scene) - this.stripOrigins.get(scene);
-          const progress = clamp01(distance / Math.max(1, span));
-          const scale = Math.max(P.w * 1.22 / plate.img.naturalWidth, P.h * 1.03 / plate.img.naturalHeight);
-          const w = plate.img.naturalWidth * scale, h = plate.img.naturalHeight * scale;
-          c.globalAlpha = alpha;
-          c.drawImage(plate.img, P.x - progress * (w - P.w), P.y - (h - P.h) / 2, w, h);
-          c.globalAlpha = 1;
+          this._panorama(scene, distance, alpha);
           return;
         }
         this._tile(this._img(src), speed, distance, painted ? 0 : ph(src), alpha,
@@ -174,7 +250,11 @@ export class WindowRenderer {
       if (changing) paint(pv, key === 'backdrop' ? 1 : 1 - a);
       paint(S, changing ? a : 1);
     };
-    layer('backdrop', sc.backdrop, 'source-over');
+    if (S.panBackdrop && pv?.panBackdrop && this._img(pv.backdrop)?.ok && this._img(S.backdrop)?.ok) {
+      this._panorama(S, F - this.stripOrigins.get(S), 1);
+    } else {
+      layer('backdrop', sc.backdrop, 'source-over');
+    }
     const fg = S.fog || {}; const fogC = fg.color || '#aab4c4';
     this._fog(fogC, (fg.far ?? 0.35), sc.fogFar, F, 0.13, 0.28, 0.7);
     // A passing landmark sits behind the shoreline, tree line or nearer rock shelf.
@@ -201,6 +281,10 @@ export class WindowRenderer {
       c.globalAlpha = 0.085;
       c.drawImage(reflection.img, P.x + P.w * .073, P.y + P.h * .095, P.h * .20, P.h * .233);
     }
+    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+    const platformSpeed = sc.near * P.h / 720;
+    if (prevIt?.station != null) this._platformPass(prevIt, (this.dist(it.start) - F) * platformSpeed);
+    if (nextIt?.station != null) this._platformPass(nextIt, (this.dist(it.end) - F) * platformSpeed);
     c.restore();
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
   }

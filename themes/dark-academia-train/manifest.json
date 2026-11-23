@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 9,
+ "version": 10,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -26,7 +26,8 @@
   "sway": false,
   "crossings": {
    "bridge": "zones/city/dock-bridge.webp",
-   "gardenWall": "zones/city/garden-wall.webp"
+   "gardenWall": "zones/city/garden-wall.webp",
+   "baileyWall": "zones/city/bailey-wall.webp"
   },
   "objectPosition": "50% 50%",
   "size": [
@@ -43,7 +44,14 @@
    }
   },
   "tunnelWall": "zones/mountains/tunnel-masonry.webp",
-  "glassReflection": "frame/sconce-reflection.webp"
+  "glassReflection": "frame/sconce-reflection.webp",
+  "stationApproaches": {
+   "s0": "stills/approach-s0.webp",
+   "s1": "stills/approach-s1.webp",
+   "s2": "stills/approach-s2.webp",
+   "s3": "stills/approach-s3.webp",
+   "s4": "stills/approach-s4.webp"
+  }
  },
  "style": {
   "camera": "Seated eye level, locked off, one centered window filling the middle ~70% of a 16:9 frame",
@@ -420,7 +428,8 @@
       "color": "#a0a09a",
       "far": 0.45,
       "near": 0.19
-     }
+     },
+     "exitCut": "baileyWall"
     },
     {
      "id": "castle-green",
@@ -1037,7 +1046,7 @@
     {
      "id": "m4",
      "title": "Hollowmere in the valley · the observatory",
-     "backdrop": "zones/mountains/vista-3.webp",
+     "backdrop": "zones/mountains/valley-approach.webp",
      "weather": {
       "snow": 0.3
      },
@@ -1051,15 +1060,6 @@
        "gain": 0.2
       }
      ],
-     "landmark": {
-      "src": "zones/mountains/lm4.webp",
-      "w": 633,
-      "h": 574,
-      "dur": 26,
-      "at": 0.55,
-      "height": 0.58,
-      "base": 1.1
-     },
      "paintedStrips": true,
      "panBackdrop": true,
      "near": "zones/forest/winter-bank.webp"

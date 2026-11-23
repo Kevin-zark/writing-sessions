@@ -54,10 +54,18 @@ def refine_platforms_and_terrain(manifest):
 
 
 def integrate_landmarks(manifest):
-    manifest['version'] = 9
+    manifest['version'] = 10
+    manifest['render']['crossings']['baileyWall'] = 'zones/city/bailey-wall.webp'
+    for view in manifest['legs'][0]['segments']:
+        if view['id'] == 'wealthy-quarter':
+            view['exitCut'] = 'baileyWall'
+    manifest['render']['stationApproaches'] = {
+        s['id']: f"stills/approach-{s['id']}.webp" for s in manifest['stations']
+    }
     manifest['render']['glassReflection'] = 'frame/sconce-reflection.webp'
     plates = {'c2': 'clocktower-roofs', 'l2': 'abbey-shore',
-              'f4': 'chapel-wood', 'm1': 'ravine-viaduct', 'm3': 'monastery-ledge'}
+              'f4': 'chapel-wood', 'm1': 'ravine-viaduct', 'm3': 'monastery-ledge',
+              'm4': 'valley-approach'}
     for leg in manifest['legs']:
         for view in leg['segments']:
             if view['id'] in plates:
