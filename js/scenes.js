@@ -196,7 +196,7 @@ export class JourneyStage {
       void H.img.offsetWidth; H.img.classList.add('kb');
     }
     H.el.style.zIndex = '2'; old.el.style.zIndex = '1'; void H.el.offsetWidth;
-    const fade = instant ? 0 : (this.speed === 1 ? 2500 : 300);
+    const fade = instant || this.render.stationApproaches && (it.station != null || was === 'station') ? 0 : (this.speed === 1 ? 2500 : 300);
     H.el.style.transition = fade ? `opacity ${fade}ms ease-in-out` : 'none'; H.el.style.opacity = '1';
     this.top = 1 - this.top;
     this.log.push({ id: it.id, kind: it.kind, mode: H.mode, t: Date.now() });
@@ -243,7 +243,9 @@ export class WindowStage {
   }
   _platformLight(pos) {
     const elapsed = pos - this.plan.items[this.cur].start;
-    const light = 0.98 + 0.017 * Math.sin(elapsed / 13) + 0.009 * Math.sin(elapsed / 7);
+    const remaining = this.plan.items[this.cur].end - pos;
+    const envelope = Math.max(0, Math.min(1, elapsed / 4, remaining / 4));
+    const light = 1 + envelope * (.017 * Math.sin(elapsed / 13) + .009 * Math.sin(elapsed / 7));
     this.st.img.style.filter = `brightness(${light})`;
   }
   jump(want, pos) {
@@ -299,7 +301,7 @@ export class WindowStage {
     const my = ++this.token, C = this.cv, S = this.st, was = this.top;
     const prevCruise = this.plan.items[this.cur]?.kind === 'cruise';
     this.cur = n;
-    const fade = instant ? 0 : (this.speed === 1 ? 2500 : 300);
+    const fade = instant || this.render.stationApproaches && (it.station != null || was === 'station') ? 0 : (this.speed === 1 ? 2500 : 300);
     const reveal = (L, other, done) => {
       L.el.style.zIndex = '2'; other.el.style.zIndex = '1'; void L.el.offsetWidth;
       L.el.style.transition = fade ? `opacity ${fade}ms ease-in-out` : 'none'; L.el.style.opacity = '1';

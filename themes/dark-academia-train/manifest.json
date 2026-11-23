@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 11,
+ "version": 12,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -64,7 +64,7 @@
  "ambienceLib": {
   "train": {
    "src": "audio/amb/train-164766.mp3",
-   "gain": 1.16,
+   "gain": 2.0,
    "title": "Carriage rumble + wheel clatter from an in-carriage recording, mid-boosted with extra rail-joint clacks so phone speakers can reproduce it (moving legs)",
    "sourceId": "164766",
    "qa": {
@@ -78,7 +78,7 @@
   },
   "train_soft": {
    "src": "audio/amb/train_soft-164766.mp3",
-   "gain": 2.95,
+   "gain": 5.1,
    "title": "Same in-carriage recording, low-passed: wheels muffled by snow",
    "sourceId": "164766",
    "qa": {
@@ -283,9 +283,7 @@
   {
    "id": "s0",
    "title": "Ravensgate Terminus",
-   "loop": "clips/loop-s0.mp4",
-   "loopDur": 10.0,
-   "still": "stills/s0.jpg",
+   "still": "stills/platform-s0.webp",
    "ambience": [
     {
      "layer": "station_walla",
@@ -337,9 +335,7 @@
   {
    "id": "s4",
    "title": "Hollowmere University",
-   "loop": "clips/loop-s4.mp4",
-   "loopDur": 10.0,
-   "still": "stills/s4.jpg",
+   "still": "stills/platform-s4.webp",
    "ambience": [
     {
      "layer": "station_walla",
@@ -612,7 +608,9 @@
      "panBackdrop": true
     }
    ],
-   "pairedScore": true
+   "pairedScore": true,
+   "rampIn": 28,
+   "rampOut": 34
   },
   {
    "id": "lake",
@@ -779,7 +777,9 @@
      ]
     }
    ],
-   "pairedScore": true
+   "pairedScore": true,
+   "rampIn": 28,
+   "rampOut": 34
   },
   {
    "id": "forest",
@@ -822,7 +822,6 @@
      "id": "f1",
      "title": "Snow-laden pines · the ruined keep",
      "backdrop": "zones/forest/vista-1.webp",
-     "mid": "zones/forest/m1.webp",
      "weather": {
       "snow": 0.6
      },
@@ -837,13 +836,13 @@
       "base": 1.1
      },
      "paintedStrips": true,
-     "panBackdrop": true
+     "panBackdrop": true,
+     "near": "zones/forest/bank-f1.webp"
     },
     {
      "id": "pine-cutting",
      "title": "The pine cutting",
      "backdrop": "zones/forest/pine-cutting.webp",
-     "mid": "zones/forest/m2.webp",
      "paintedStrips": true,
      "panBackdrop": true,
      "weather": {
@@ -855,13 +854,13 @@
        "layer": "forest_wind",
        "gain": 0.45
       }
-     ]
+     ],
+     "near": "zones/forest/bank-pine-cutting.webp"
     },
     {
      "id": "f2",
      "title": "The frozen waterfall",
      "backdrop": "zones/forest/ice-falls.webp",
-     "mid": "zones/forest/m2.webp",
      "weather": {
       "snow": 0.7
      },
@@ -872,19 +871,20 @@
       }
      ],
      "paintedStrips": true,
-     "panBackdrop": true
+     "panBackdrop": true,
+     "near": "zones/forest/bank-f2.webp"
     },
     {
      "id": "f3",
      "title": "The woodcutter's cabin",
      "backdrop": "zones/forest/woodcutters-clearing.webp",
-     "mid": "zones/forest/m3.webp",
      "weather": {
       "snow": 0.75
      },
      "ambience": [],
      "paintedStrips": true,
-     "panBackdrop": true
+     "panBackdrop": true,
+     "near": "zones/forest/bank-f3.webp"
     },
     {
      "id": "f4",
@@ -900,13 +900,13 @@
       }
      ],
      "paintedStrips": true,
-     "panBackdrop": true
+     "panBackdrop": true,
+     "near": "zones/forest/bank-f4.webp"
     },
     {
      "id": "upland-firs",
      "title": "Firs at the snow line",
      "backdrop": "zones/forest/upland-firs.webp",
-     "mid": "zones/forest/m1.webp",
      "paintedStrips": true,
      "panBackdrop": true,
      "weather": {
@@ -918,10 +918,13 @@
        "layer": "wind_high",
        "gain": 0.48
       }
-     ]
+     ],
+     "near": "zones/forest/bank-upland-firs.webp"
     }
    ],
-   "pairedScore": true
+   "pairedScore": true,
+   "rampIn": 28,
+   "rampOut": 34
   },
   {
    "id": "mountains",
@@ -1131,7 +1134,9 @@
     }
    ],
    "arrivalMusicIndex": 2,
-   "pairedScore": true
+   "pairedScore": true,
+   "rampIn": 28,
+   "rampOut": 34
   }
  ],
  "credits": [

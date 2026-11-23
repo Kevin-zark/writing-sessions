@@ -184,7 +184,7 @@ export class SessionAudio {
   _layerTiming(k, t, periodStart) {
     const layer = this.lib[k], duration = layer.buf.duration;
     const ls = duration > 2 ? .05 : 0, le = duration > 2 ? duration - .03 : duration;
-    let elapsed = t - periodStart, points = null, rate = 1;
+    let elapsed = t - periodStart, points = null, rate = 1, cruise = 1;
     if (layer.character === 'wheels') {
       for (const span of this.plan?.legSpans || []) {
         if (span.end <= periodStart || span.start > t) continue;
@@ -192,12 +192,12 @@ export class SessionAudio {
         const from = Math.max(span.start, periodStart), until = Math.min(t, span.end);
         const at = wheelPosition(curve, until);
         elapsed += at.seconds - wheelPosition(curve, from).seconds - (until - from);
-        if (t < span.end) { points = curve; rate = at.rate; }
+        if (t < span.end) { points = curve; rate = at.rate; cruise = Math.max(.60, span.speed ?? this.legs?.[span.leg]?.speed ?? 1); }
       }
     }
     // A returning sound joins a different part of its recording at each location.
     const phase = layer.character ? periodStart * .371 : 0;
-    return { ls, le, points, rate, offset: layerOffset(elapsed + phase, 0, ls, le) };
+    return { ls, le, points, rate, cruise, offset: layerOffset(elapsed + phase, 0, ls, le) };
   }
 
   _startAudibleLayer(k, t, when, periodStart, gain) {
@@ -212,7 +212,7 @@ export class SessionAudio {
     n.motion = motion;
     const speed = this.speed || 1;
     if (timing.points) {
-      const level = rate => .10 + .90 * (rate - .48) / .52;
+      const level = rate => .10 + .90 * Math.min(1, Math.max(0, (rate - .48) / (timing.cruise - .48)));
       motion.gain.setValueAtTime(level(timing.rate), when);
       n.s.playbackRate.setValueAtTime(timing.rate * speed, when);
       for (const [time, rate] of timing.points) {

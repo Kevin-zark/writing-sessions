@@ -77,9 +77,9 @@ def integrate_landmarks(manifest):
 
 
 def balance_soundtrack(manifest):
-    manifest['version'] = 11
+    manifest['version'] = 12
     # Source loudness differs between the two interior recordings by almost 10 LU.
-    settings = {'train': (1.16, 'wheels'), 'train_soft': (2.95, 'wheels'),
+    settings = {'train': (2.0, 'wheels'), 'train_soft': (5.1, 'wheels'),
                 'rain_glass': (2.8, 'weather'), 'forest_wind': (3.15, 'weather'),
                 'wind_high': (2.2, 'weather'), 'blizzard': (2.25, 'weather'),
                 'lake_lap': (4.3, 'water'), 'stream': (3.25, 'water')}
@@ -88,6 +88,17 @@ def balance_soundtrack(manifest):
     for layer in manifest['stations'][1]['ambience']:
         if layer['layer'] == 'city_s1':
             layer['gain'] = 1.85
+    for station in manifest['stations']:
+        station.pop('loop', None)
+        station.pop('loopDur', None)
+        station['still'] = f"stills/platform-{station['id']}.webp"
+    for leg in manifest['legs']:
+        leg.update(rampIn=28, rampOut=34)
+    forest = manifest['legs'][2]
+    for view in forest['segments']:
+        # The photographed tree line supplies the middle distance.
+        view.pop('mid', None)
+        view['near'] = f"zones/forest/bank-{view['id']}.webp"
     # Match chapter music around -20.5 LUFS before the listener's volume control.
     trims = [[.49, .53], [.70, .69], [.64, .60], [.68, .72, .49, .54]]
     for leg, gains in zip(manifest['legs'], trims):

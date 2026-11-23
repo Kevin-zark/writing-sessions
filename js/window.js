@@ -91,12 +91,16 @@ export class WindowRenderer {
     this.after = items[last + 1];
     for (const neighbor of [this.before, this.after]) {
       if (neighbor?.scene) want.add(neighbor.scene.backdrop);
-      else if (neighbor) want.add(this.cfg.stationApproaches?.[neighbor.id]);
+      else if (neighbor) { want.add(this.cfg.stationApproaches?.[neighbor.id]); want.add(this.cfg.tunnelWall); }
     }
     want.forEach(a => a && this._img(a));
     for (const [src, e] of this.imgs) if (!want.has(src) && src !== this.frame.src) { e.img.onload = e.img.onerror = null; e.img.src = ''; this.imgs.delete(src); }
   }
-  get ready() { const it = this.plan.items[this.idx], s = it?.scene; if (!s) return false; const e = this._img(s.backdrop); return !!(this.frame.ok && (!e || e.ok || e.err)); }
+  get ready() { const it = this.plan.items[this.idx], s = it?.scene; if (!s) return false; const e = this._img(s.backdrop); const neighborsReady = [this.before, this.after].every(neighbor => {
+      const plate = this._img(this.cfg.stationApproaches?.[neighbor?.id]);
+      return !plate || plate.ok || plate.err;
+    });
+    return !!(this.frame.ok && neighborsReady && (!e || e.ok || e.err)); }
 
   start(getPos) {
     this.getPos = getPos; if (this.run) return; this.run = true; let last = 0; const minDt = 1000 / this.cfg.fps - 2;
@@ -203,16 +207,40 @@ export class WindowRenderer {
     c.globalAlpha = 1;
   }
 
-  _platformPass(station, offset) {
-    const entry = this._img(this.cfg.stationApproaches?.[station?.id]);
+  _platformPass(station, offset, arriving) {
+    const entry = this._img(this.cfg.stationApproaches?.[station.id]);
     if (!entry?.ok) return;
-    const P = this.pane, width = entry.img.naturalWidth * P.h / entry.img.naturalHeight;
+    const P = this.pane, c = this.c;
+    // A nearby abutment hides the join. The building beyond it moves only
+    // through the overscan of its photograph as the carriage comes to rest.
+    const pier = P.w * .20;
+    const edge = arriving ? offset - pier : P.w + pier + offset;
+    if (arriving ? edge - pier > P.w : edge + pier < 0) return;
+    const width = entry.img.naturalWidth * P.h / entry.img.naturalHeight;
     const margin = Math.max(0, (width - P.w) / 2);
-    const x = P.x - margin + offset;
-    if (x >= P.x + P.w || x + width <= P.x) return;
-    const edge = Math.min(margin, P.w * .12);
-    const surface = this._feathered(entry, width, P.h, edge, edge);
-    this.c.drawImage(surface, x, P.y, width, P.h);
+    const shift = margin * Math.tanh(offset / P.w * 1.4);
+    c.save();
+    c.beginPath();
+    const join = P.x + edge;
+    if (arriving) c.rect(join, P.y, P.x + P.w - join, P.h);
+    else c.rect(P.x, P.y, edge, P.h);
+    c.clip();
+    c.drawImage(entry.img, P.x - margin + shift, P.y, width, P.h);
+    c.restore();
+    const wall = this._img(this.cfg.tunnelWall);
+    if (wall?.ok && edge + pier / 2 > 0 && edge - pier / 2 < P.w) {
+      const x = join - pier / 2;
+      const sw = wall.img.naturalHeight * pier / P.h;
+      c.drawImage(wall.img, (wall.img.naturalWidth - sw) / 2, 0,
+        sw, wall.img.naturalHeight, x, P.y, pier, P.h);
+      const shade = c.createLinearGradient(x, 0, x + pier, 0);
+      shade.addColorStop(0, 'rgba(10,12,14,.65)');
+      shade.addColorStop(.09, 'rgba(10,12,14,.18)');
+      shade.addColorStop(.78, 'rgba(10,12,14,.22)');
+      shade.addColorStop(1, 'rgba(10,12,14,.74)');
+      c.fillStyle = shade;
+      c.fillRect(x, P.y, pier, P.h);
+    }
   }
 
   draw(pos) {
@@ -283,8 +311,8 @@ export class WindowRenderer {
     }
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     const platformSpeed = sc.near * P.h / 720;
-    if (prevIt?.station != null) this._platformPass(prevIt, (this.dist(it.start) - F) * platformSpeed);
-    if (nextIt?.station != null) this._platformPass(nextIt, (this.dist(it.end) - F) * platformSpeed);
+    if (prevIt?.station != null) this._platformPass(prevIt, (this.dist(it.start) - F) * platformSpeed, false);
+    if (nextIt?.station != null) this._platformPass(nextIt, (this.dist(it.end) - F) * platformSpeed, true);
     c.restore();
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
   }

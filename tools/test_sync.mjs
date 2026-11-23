@@ -91,9 +91,9 @@ check('Score returns to A on its clock after B finishes', thirdPlay.primary?.ind
 const roll = wheelMotion(plan.legSpans[0], m.legs[0]);
 const depart = plan.legSpans[0].start, arrive = plan.legSpans[0].end;
 check('Wheels accelerate from the platform', wheelPosition(roll, depart).rate === .48 &&
-  Math.abs(wheelPosition(roll, depart + 12).seconds - 8.88) < 1e-5);
-check('Wheel phase and cadence agree while braking', Math.abs(wheelPosition(roll, arrive - 7).rate - .74) < 1e-5 &&
-  Math.abs(wheelPosition(roll, arrive).seconds - wheelPosition(roll, arrive - 14).seconds - 10.36) < 1e-5);
+  Math.abs(wheelPosition(roll, depart + m.legs[0].rampIn).seconds - .74 * m.legs[0].rampIn) < 1e-5);
+check('Wheel phase and cadence agree while braking', Math.abs(wheelPosition(roll, arrive - m.legs[0].rampOut / 2).rate - .74) < 1e-5 &&
+  Math.abs(wheelPosition(roll, arrive).seconds - wheelPosition(roll, arrive - m.legs[0].rampOut).seconds - .74 * m.legs[0].rampOut) < 1e-5);
 const brief = buildTimeline({ ...DEFAULT_SETTINGS, sprints: 1, sprintMin: 25, intro: true, outro: true });
 const shortPlan = planJourney(brief, m);
 const score = buildMusicRuns(brief, shortPlan, m.legs);
