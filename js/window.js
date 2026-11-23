@@ -56,7 +56,7 @@ export class WindowRenderer {
     img.onload = () => { e.ok = true; }; img.onerror = () => { e.err = true; };
     img.src = this.base + src; return e;
   }
-  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src].filter(Boolean); }
+  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, s.exitCut === 'bridge' && this.cfg.bridge].filter(Boolean); }
   /** Which cruise item is current; preloads its assets and the next few, frees the rest. */
   setItem(idx) {
     this.idx = idx; const items = this.plan.items, want = new Set([this.cfg.frame?.src, this.frame?.src]);
@@ -147,17 +147,27 @@ export class WindowRenderer {
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)
     if (lm && lm.type === 'tunnel') this._tunnel(it, lm, pos);
+    if (approachingBridge || enteringFromBridge) {
+      this._bridge(pos - (approachingBridge ? it.end : it.start));
+    }
     // light: slow cloud drift + glass vignette
     c.fillStyle = `rgba(0,0,0,${0.05 + 0.05 * Math.sin(pos * 0.047)})`; c.fillRect(P.x, P.y, P.w, P.h);
     const g = c.createRadialGradient(P.x + P.w / 2, P.y + P.h / 2, P.h * 0.35, P.x + P.w / 2, P.y + P.h / 2, P.w * 0.62);
     g.addColorStop(0, 'rgba(8,10,14,0)'); g.addColorStop(1, 'rgba(8,10,14,0.42)'); c.fillStyle = g; c.fillRect(P.x, P.y, P.w, P.h);
     c.restore();
-    // The underside of the bridge hides the exact instant of the scene swap.
-    if ((approachingBridge && it.end - pos <= 0.65) || (enteringFromBridge && pos - it.start < 0.65)) {
-      c.fillStyle = '#07090b';
-      c.fillRect(P.x, P.y, P.w, P.h);
-    }
     if (this.frame.ok) c.drawImage(this.frame.img, 0, 0, this.W, this.H);
+  }
+
+  // Offset is relative to the shared item boundary, so either scene draws the
+  // same piece of bridge at the same time, including during a reverse seek.
+  _bridge(offset) {
+    const pane = this.pane;
+    const width = pane.w * 3.55; // the solid middle 40% must exceed the pane width
+    const left = pane.x + (pane.w - width) / 2 - offset * pane.w * 0.75;
+    if (left >= pane.x + pane.w || left + width <= pane.x) return;
+    const bridge = this._img(this.cfg.bridge);
+    if (!bridge?.ok) return;
+    this.c.drawImage(bridge.img, left, pane.y - 2, width, pane.h + 4);
   }
 
   _landmarkWindow(it) { return it.lmWin || null; }     // fixed by the planner (journey.js)

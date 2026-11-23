@@ -24,6 +24,7 @@
  "render": {
   "type": "window",
   "sway": false,
+  "bridge": "zones/city/dock-bridge.webp",
   "objectPosition": "50% 50%",
   "size": [
    1280,
