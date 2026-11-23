@@ -107,7 +107,7 @@ function waterSurface(image) {
 }
 
 export async function voyageScene(canvas, base=BASE) {
-  const names=['sea','harbor','merchant','foredeck','wash','navy','sunny','port','isles','pirate','storm','haven','post','beach','map','maelstrom','sign','sunset'];
+  const names=['sea','harbor','merchant','foredeck','wash','navy','sunny','port','isles','pirate','storm','haven','post','beach','map','maelstrom','sign','sunset','tender'];
   const art=Object.fromEntries(await Promise.all(names.map(async name=>{
     const img=new Image(); img.src=new URL(name+'.webp',base); await img.decode(); return [name,img];
   })));
@@ -147,32 +147,99 @@ export async function voyageScene(canvas, base=BASE) {
     return ocean;
   }
 
-  function landfall(img, approach, t) {
-    if (approach<=0) return;
-    // A fixed waterfront viewed from a closing range, easing to rest off the quay.
-    const range=55+920*(1-approach)**1.4;
-    const scale=785/range, width=102*scale;
-    const x=630-13*scale-width/2, y=359+3.8*scale;
-    c.save(); c.globalAlpha=ease(approach*6);
-    vessel(art.isles,x-width*.43,y-1,width*1.8,0,false);
-    vessel(img,x,y,width,0,false);
-    const h=width*img.height/img.width;
-    for (let band=0;band<18;band++) {
-      const depth=band/18;
-      c.globalAlpha=ease(approach*6)*.20*(1-depth)**2;
-      const sh=Math.max(1,img.height/18);
-      c.drawImage(img,0,img.height-(band+1)*sh,img.width,sh,
-        x+Math.sin(t*1.6-band*.9)*depth*5,y+depth*h*.20,width,h*.20/18+1);
+  // Project the same metres for eye height, shoreline, outlying rocks and boats.
+  // Sway is a translation of the observer, so its effect falls off with distance.
+  let eyeX=0, eyeHeight=3.8;
+  const focal=785, horizon=359;
+  function project(x,z,height=0) {
+    const scale=focal/z;
+    return {x:630+(x-eyeX)*scale, y:horizon+(eyeHeight-height)*scale, scale};
+  }
+
+  function reflected(img,x,y,w,t,opacity) {
+    const h=w*img.height/img.width;
+    c.save();
+    const alpha=c.globalAlpha;
+    for (let row=0;row<15;row++) {
+      const d=row/15;
+      c.globalAlpha=alpha*opacity*(1-d)**1.5*(.72+.28*Math.cos(t*1.6-row));
+      const shift=d*(3.2*Math.sin(t*1.2-row*.83)+2*Math.sin(row*.44-t*.9));
+      c.drawImage(img,0,img.height*(14-row)/15,img.width,img.height/15,
+        x+shift,y+d*h*.27,w,Math.max(1,h*.27/15));
     }
     c.restore();
   }
-  function vessel(img,x,y,width,roll,reflection) {
+
+  // The port photograph looks obliquely down a quay. Register its visible
+  // waterline before projecting, so the distant end meets the sea as well.
+  const count=64;
+  const mask=document.createElement('canvas');
+  mask.width=count; mask.height=128;
+  const maskCtx=mask.getContext('2d');
+  maskCtx.drawImage(art.port,0,0,count,128);
+  const alpha=maskCtx.getImageData(0,0,count,128).data;
+  const portBase=Array.from({length:count},(_,i)=>{
+    let row=127;
+    while (row>0 && alpha[4*(row*count+i)+3]<90) row--;
+    return (row+1)/128;
+  });
+  const berths={
+    port:{ridge:-94, skew:20, tender:1.5},
+    haven:{ridge:78, skew:-24, tender:16},
+    post:{ridge:-62, skew:14, tender:-17},
+    beach:{ridge:104, skew:-17}
+  };
+  function landfall(name, approach, t) {
+    if (approach<=0) return;
+    const img=art[name], berth=berths[name];
+    const range=67+920*(1-approach)**1.4;
+    // Follow the channel on a shallow diagonal. Nearby moorings change bearing
+    // against town, while the high ground lies another half kilometre inland.
+    const center=-9+38*(1-approach);
+    const ridge=project(center+berth.ridge,range+525);
+    const ridgeWidth=555*ridge.scale;
+    c.save(); c.globalAlpha=ease(approach*6)*.64;
+    vessel(art.isles,ridge.x-ridgeWidth/2,ridge.y,ridgeWidth,0);
+    c.globalAlpha=ease(approach*6);
+    function shorePoint(u) {
+      const bend=berth.skew*(u-.5)+6*Math.cos(u*Math.PI*2+.5);
+      return project(center+(u-.5)*110,range+bend);
+    }
+    let left=shorePoint(0);
+    const height=110*img.height/img.width;
+    for (let i=0;i<count;i++) {
+      const right=shorePoint((i+1)/count);
+      const h=height*(left.scale+right.scale)/2;
+      const width=right.x-left.x+.35;
+      if (width>0 && right.x>0 && left.x<1280) {
+        const sx=i*img.width/count, sw=img.width/count;
+        const foot=name==='port' ? portBase[i] : 1;
+        const top=left.y-h*(name==='port' ? .70 : 1);
+        c.drawImage(img,sx,0,sw,img.height,left.x,top,width,h);
+        // The lower quay and trees cast a broken reflection at the local waterline.
+        c.save(); c.globalAlpha*=.17;
+        c.translate(left.x,top+h*foot); c.scale(1,-.25);
+        c.drawImage(img,sx,img.height*(foot-.4),sw,img.height*.4,0,-h*.4,width,h*.4);
+        c.restore();
+      }
+      left=right;
+    }
+    if (berth.tender!==undefined) {
+      const boat=project(berth.tender+.32*Math.sin(t*.14),range-32);
+      const w=5.4*boat.scale, bob=.09*boat.scale*Math.sin(t*.72+.8);
+      reflected(art.tender,boat.x-w/2,boat.y+bob,w,t,.27);
+      vessel(art.tender,boat.x-w/2,boat.y+bob,w,.016*Math.sin(t*.49));
+    }
+    if (name==='beach') {
+      const peg=project(center+3,range-12), h=9.5*peg.scale;
+      const w=h*art.sign.width/art.sign.height;
+      c.drawImage(art.sign,peg.x-w/2,peg.y-h,w,h);
+    }
+    c.restore();
+  }
+  function vessel(img,x,y,width,roll) {
     const h=width*img.height/img.width;
     c.save(); c.translate(x,y); c.rotate(roll);
-    if (reflection) {
-      c.save(); c.scale(1,-.13); c.globalAlpha=.14;
-      c.drawImage(img,0,-h,width,h); c.restore();
-    }
     c.drawImage(img,0,-h,width,h); c.restore();
   }
   // A misted headland beyond the port provides a distant reference as the
@@ -227,17 +294,39 @@ export async function voyageScene(canvas, base=BASE) {
     if (x>1340 || x+w*1.5 < -52) return;
     const bob = 374 + 30*proximity + 3.4*Math.sin(t*.72+2);
     const heel = .012*Math.sin(t*.62+.8);
-    vessel(image,x,bob-w*.5*heel,w,heel,true);
+    // Project stations along the keel at their respective ranges. The ends
+    // foreshorten on different bearings as the ship crosses our heading.
+    const bearing=Math.atan2(x+w*.5-630,785);
+    const yaw=(forward ? -.24 : .24)+bearing*.54;
+    const length=w*Math.cos(yaw), h=w*image.height/image.width;
+    x+=(w-length)/2;
+    w=length;
+    reflected(image,x,bob,w,t,.26);
+    c.save(); c.translate(x+w*.5,bob); c.rotate(heel);
+    let lastX=-w*.5;
+    const pitch=.012*Math.sin(t*.48+1.4);
+    for (let i=0;i<40;i++) {
+      const u=(i+1)/40, inv=1/(1+(u-.5)*Math.sin(yaw)*w/785);
+      const next=(u-.5)*w*inv;
+      if (i===0) lastX=-.5*w/(1-.5*Math.sin(yaw)*w/785);
+      const mid=(i+.5)/40-.5;
+      const scale=1/(1+mid*Math.sin(yaw)*w/785);
+      const base=(bob-horizon)*(scale-1)+mid*w*pitch;
+      c.drawImage(image,i*image.width/40,0,image.width/40,image.height,
+        lastX,base-h*scale+h*.063,next-lastX+.32,h*scale);
+      lastX=next;
+    }
+    c.restore();
     // Waves cross in front of the hull. Their crest follows the waterline
     // as the vessel heels, and a short broken wake trails from the stern.
     if (x < 1332 && x+w*1.5 > -52) {
       c.save(); c.beginPath();
       for (let i=0;i<=64;i++) {
         const u=i/64, px=x+w*u;
-        const py=bob+(u-.5)*w*heel-2.1+1.6*Math.sin(px*.074+t*2.2)+.8*Math.sin(px*.135-t*1.72);
+        const py=bob+(u-.5)*w*(heel+pitch-(bob-horizon)*Math.sin(yaw)/785)-2.1+1.6*Math.sin(px*.074+t*2.2)+.8*Math.sin(px*.135-t*1.72);
         if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
       }
-      c.lineTo(x+w,bob+16); c.lineTo(x,bob+16); c.closePath(); c.clip();
+      c.lineTo(x+w,bob+64); c.lineTo(x,bob+64); c.closePath(); c.clip();
       c.drawImage(surface,-52,-30,1384,780); c.restore();
       c.lineWidth=.9;
       for (let i=0;i<65;i++) {
@@ -249,12 +338,31 @@ export async function voyageScene(canvas, base=BASE) {
     }
   }
 
+  // Separate rocky outcrops at natural breaks in the photographed coastline.
+  const rockCuts=[[0,1078],[1078,1187],[1187,1328],[1328,1527],[1527,1627]].map(([a,b])=>{
+    const cut=document.createElement('canvas');
+    cut.width=b-a; cut.height=art.isles.height;
+    cut.getContext('2d').drawImage(art.isles,a,0,b-a,cut.height,0,0,cut.width,cut.height);
+    return cut;
+  });
   function seaStacks(progress,a,b,t) {
     if (progress<=a || progress>=b) return;
     const u=(progress-a)/(b-a);
-    const w=460+240*Math.sin(Math.PI*u);
-    c.save(); c.globalAlpha=.64*arc(u,0,.13,.87,1);
-    vessel(art.isles,1000-1670*u,360+3*Math.sin(Math.PI*u),w,0,true);
+    const side=a>.5 ? -1 : 1;
+    // A long headland lies well beyond the reef. Rock bases and reflections
+    // rise from the same sea plane as the ships, even when the camera heaves.
+    const ranges=[1160,490,390,240,185], spans=[910,19,27,29,11];
+    const bearings=[.10,.34,.22,.28,.18];
+    c.save();
+    for (let i=0;i<rockCuts.length;i++) {
+      const z=ranges[i]+620*(1-u);
+      const point=project(side*(bearings[i]*ranges[i]+330-1120*u),z);
+      const w=spans[i]*point.scale;
+      c.globalAlpha=arc(u,0,.16,.88,1)*(i===0 ? .62 : .86);
+      const left=point.x-w/2;
+      reflected(rockCuts[i],left,point.y,w,t,.19);
+      vessel(rockCuts[i],left,point.y,w,0);
+    }
     c.restore();
   }
 
@@ -322,6 +430,8 @@ export async function voyageScene(canvas, base=BASE) {
     const cross=Math.sin(t*.47+1.1);
     const roll=(.30+.70*open)*(.019*swell+.009*cross+.0018*Math.sin(t*1.7));
     const lift=(.35+.65*open)*(6*Math.sin(t*.68-.8)+3*cross);
+    eyeX=.32*cross+.15*swell;
+    eyeHeight=3.8+.15*swell;
     const lean=3*Math.sin(t*.68-.5)+1.8*cross;
     c.save(); c.translate(640,354+lift); c.rotate(roll); c.translate(-640,-354);
     const turn=leg===2 ? arc(progress,.46,.60,.70,.79) : 0;
@@ -340,7 +450,16 @@ export async function voyageScene(canvas, base=BASE) {
     if (leg===0) {
       c.globalAlpha=1-between(progress,.22,.52);
       c.drawImage(land,-1520-travel*.22,281,2400,80); c.globalAlpha=1;
-      if (position<100) waterfront(travel);
+      if (position<100) {
+        waterfront(travel);
+        const z=50-travel;
+        if (z>5) {
+          const boat=project(-15,z), w=4.8*boat.scale;
+          const y=boat.y+.06*boat.scale*Math.sin(t*.82);
+          reflected(art.tender,boat.x-w/2,y,w,t,.19);
+          vessel(art.tender,boat.x-w/2,y,w,.018*Math.sin(t*.6));
+        }
+      }
     }
     // Opposing course. The merchant rises on a different swell from our deck.
     const x=1480-(route-14)*53;
@@ -357,19 +476,14 @@ export async function voyageScene(canvas, base=BASE) {
       }
       seaStacks(progress,.48,.78,t);
     } else {
-      landfall(art[ports[leg-1]],1-between(progress,0,.15),t);
+      landfall(ports[leg-1],1-between(progress,0,.15),t);
       if (leg===1 || leg===3) pirateRun(progress,t,surface,leg===3,events);
       if (leg===2) whirlpool(progress,t);
       seaStacks(progress,.12,.41,t);
       seaStacks(progress,.57,.83,t);
     }
     const arrival=between(progress,leg===0 ? .64 : .76,1);
-    landfall(art[ports[leg]],arrival,t);
-    if (leg===3 && arrival>.66) {
-      const size=240*between(arrival,.66,1);
-      const w=size*art.sign.width/art.sign.height;
-      c.drawImage(art.sign,455-w/2,405-size,w,size);
-    }
+    landfall(ports[leg],arrival,t);
     c.restore();
     c.save();
     c.translate(lean*.45, lift*.18);
