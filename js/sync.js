@@ -21,7 +21,7 @@ export function lvlOf(seg) {
 
 export function cosLerp(from, to, x) {
   x = Math.min(1, Math.max(0, x));
-  return from * Math.cos(0.5 * Math.PI * x) + to * Math.sin(0.5 * Math.PI * x);
+  return from + (to - from) * .5 * (1 - Math.cos(Math.PI * x));
 }
 
 export function songOf(legs, leg, idx) {
@@ -44,7 +44,8 @@ export function buildMusicRuns(tl, plan, legs) {
       const useLg = (lg == null || lg < 0) ? curLeg : lg;
       if (useLg === curLeg) {
         const list = legs[curLeg]?.music || [];
-        if (songIndex < list.length - 1) songIndex++;
+        if (legs[curLeg].pairedScore) songIndex = (songIndex + 1) % Math.min(2, list.length || 1);
+        else if (songIndex < list.length - 1) songIndex++;
       } else {
         curLeg = useLg;
         songIndex = 0;
@@ -68,7 +69,23 @@ export function buildMusicRuns(tl, plan, legs) {
     runs.push({ audioStart: arrival.start, audibleEnd: tl.total, silentUntil: tl.total,
       sprintN: sprints.length, song: songOf(legs, destinationLeg, arrivalIndex) });
   }
-  return runs;
+  const score = [];
+  for (const run of runs) {
+    let current = run;
+    for (const span of plan.legSpans || []) {
+      if (span.start <= current.audioStart || span.start >= run.audibleEnd || span.leg === current.song?.leg) continue;
+      score.push({ ...current, audibleEnd: span.start, silentUntil: span.start });
+      current = { ...run, audioStart: span.start, song: songOf(legs, span.leg, 0) };
+    }
+    score.push(current);
+  }
+  for (const run of score) {
+    const song = run.song;
+    if (!song || !legs[song.leg].pairedScore) continue;
+    const first = song.index - song.index % 2;
+    run.rotation = [song, songOf(legs, song.leg, first + (song.index === first ? 1 : 0))];
+  }
+  return score;
 }
 
 export function runAt(t, runs) {
@@ -85,28 +102,26 @@ export function runAt(t, runs) {
 export function musicAt(t, runs, durations, fade = FADE) {
   const run = runAt(t, runs);
   if (!run || !run.song) return { run: null, voices: [], primary: null };
-  const D = durations[run.song.src] ?? durations[run.song.title];
-  if (!D || !(D > 1)) return { run, voices: [], primary: null, missingDuration: true };
-  const T0 = run.audioStart, ov = Math.min(fade.overlap, fade.out), fo = Math.min(fade.out, D * 0.4), fi = Math.min(fade.in, D * 0.4);
-  const period = Math.max(0.01, D - ov);
+  const durationOf = song => durations[song.src] ?? durations[song.title];
+  const rotation = (run.rotation || [run.song]).filter(song => durationOf(song) > 1);
+  if (!rotation.length) return { run, voices: [], primary: null, missingDuration: true };
   const voices = [];
-  if (t < T0) return { run, voices, primary: null, period, duration: D };
-  const kMax = Math.floor((t - T0) / period) + 2;
-  for (let k = 0; k <= kMax; k++) {
-    const start = T0 + k * period, end = start + D;
-    if (t < start || t >= end) continue;
-    const u = t - start;
-    let gain = 1;
-    if (k > 0 && u < fi) gain = Math.sin(0.5 * Math.PI * (u / fi));
-    if (u >= D - fo) {
-      const x = (u - (D - fo)) / fo;
-      gain *= Math.cos(0.5 * Math.PI * Math.min(1, Math.max(0, x)));
+  let start = run.audioStart;
+  for (let k = 0; start <= t + 1e-9; k++) {
+    const song = rotation[k % rotation.length], duration = durationOf(song);
+    const out = Math.min(fade.out, duration * .4), intro = Math.min(fade.in, duration * .4);
+    const overlap = Math.min(fade.overlap, out), end = start + duration;
+    if (t < end) {
+      const offset = Math.max(0, t - start);
+      let gain = k > 0 && offset < intro ? Math.sin(Math.PI / 2 * offset / intro) : 1;
+      if (offset >= duration - out) gain *= Math.cos(Math.PI / 2 * (offset - duration + out) / out);
+      voices.push({ ...song, k, start, end, offset, gain, duration, first: k === 0 });
     }
-    voices.push({ ...run.song, k, start, end, offset: u, gain, first: k === 0 });
+    start = end - overlap;
   }
-  voices.sort((a, b) => a.start - b.start);
-  const primary = voices.length ? voices[voices.length - 1] : null;
-  return { run, voices, primary, period, duration: D };
+  const primary = voices.at(-1) || null;
+  return { run, voices, primary, duration: primary?.duration, rotation };
+
 }
 
 export function busAt(t, tl, vol, fade = FADE) {
@@ -184,4 +199,34 @@ export function chimesFrom(t, tl) {
   }
   if (tl.total >= t - 0.01) out.push({ sessionT: tl.total, kind: 'end' });
   return out;
+}
+
+export function wheelMotion(span, leg) {
+  const duration = span.end - span.start;
+  const rise = span.startsAtStop ? Math.min(leg?.rampIn ?? 12, duration / 2) : 0;
+  const fall = span.endsAtStop ? Math.min(leg?.rampOut ?? 14, duration / 2) : 0;
+  const cruise = Math.max(.60, span.speed ?? leg?.speed ?? 1);
+  const points = [[span.start, rise ? .48 : cruise]];
+  if (rise) points.push([span.start + rise, cruise]);
+  // Gentle changes in running cadence prevent a recorded wheel phrase from
+  // returning at a mechanical interval. Integrating the same knots preserves seek phase.
+  for (let time = span.start + rise + 35; time < span.end - fall - 30; time += 35) {
+    const variation = .017 * Math.sin(time / 46) + .011 * Math.sin(time / 71);
+    points.push([time, cruise * (1 + variation)]);
+  }
+  if (fall && span.end - fall > points.at(-1)[0]) points.push([span.end - fall, cruise]);
+  points.push([span.end, fall ? .48 : cruise]);
+  return points;
+}
+
+export function wheelPosition(points, t) {
+  let seconds = 0, rate = points[0][1];
+  for (let i = 1; i < points.length; i++) {
+    const [start, from] = points[i - 1], [end, to] = points[i];
+    const elapsed = Math.max(0, Math.min(end, t) - start);
+    rate = from + (to - from) * elapsed / (end - start);
+    seconds += elapsed * (from + rate) / 2;
+    if (t <= end) break;
+  }
+  return { seconds, rate };
 }

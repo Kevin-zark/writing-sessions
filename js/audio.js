@@ -1,4 +1,4 @@
-import { FADE, buildMusicRuns, musicAt, busAt, layersAt, layerOffset, chimesFrom, lvlOf } from './sync.js';
+import { FADE, buildMusicRuns, musicAt, busAt, layersAt, layerOffset, cosLerp, chimesFrom, lvlOf, wheelMotion, wheelPosition } from './sync.js';
 
 // Web Audio session soundtrack: synthesized chimes, music chain with dip-to-quiet fades,
 // looping ambience, all scheduled on the audio clock (so chimes stay on time even
@@ -9,7 +9,7 @@ const AC = window.AudioContext || window.webkitAudioContext;
 export class SessionAudio {
   constructor() {
     this.ctx = null; this.vol = { music: 0.8, amb: 0.7, chime: 0.8 };
-    this.tracks = []; this.ambBuf = null; this.musicEnd = 0; this.songIndex = 0;
+    this.rotation = null; this.tracks = []; this.ambBuf = null; this.musicEnd = 0; this.songIndex = 0;
     this.chimeNodes = []; this.musicSrcs = []; this.musicQueue = []; this.anchor = null; this.speed = 1;
     // listen9 strong-a: outgoing fades out over 8 s to silence; incoming starts in the last 1.5 s and reaches full over 6 s
     this.fadeOut = 8; this.fadeIn = 6; this.fadeOverlap = 1.5;
@@ -140,7 +140,7 @@ export class SessionAudio {
     const c = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const x = i / (n - 1);
-      c[i] = from * Math.cos(0.5 * Math.PI * x) + to * Math.sin(0.5 * Math.PI * x);
+      c[i] = cosLerp(from, to, x);
     }
     return c;
   }
@@ -181,6 +181,97 @@ export class SessionAudio {
     s.connect(g); g.connect(this.ambBus); s.start(when, offset);
     this.layerNodes[k] = { s, g, target: 0 };
   }
+  _layerTiming(k, t, periodStart) {
+    const layer = this.lib[k], duration = layer.buf.duration;
+    const ls = duration > 2 ? .05 : 0, le = duration > 2 ? duration - .03 : duration;
+    let elapsed = t - periodStart, points = null, rate = 1;
+    if (layer.character === 'wheels') {
+      for (const span of this.plan?.legSpans || []) {
+        if (span.end <= periodStart || span.start > t) continue;
+        const curve = wheelMotion(span, this.legs?.[span.leg]);
+        const from = Math.max(span.start, periodStart), until = Math.min(t, span.end);
+        const at = wheelPosition(curve, until);
+        elapsed += at.seconds - wheelPosition(curve, from).seconds - (until - from);
+        if (t < span.end) { points = curve; rate = at.rate; }
+      }
+    }
+    // A returning sound joins a different part of its recording at each location.
+    const phase = layer.character ? periodStart * .371 : 0;
+    return { ls, le, points, rate, offset: layerOffset(elapsed + phase, 0, ls, le) };
+  }
+
+  _startAudibleLayer(k, t, when, periodStart, gain) {
+    const timing = this._layerTiming(k, t, periodStart);
+    this._addLayerNode(k, when, timing.offset);
+    const n = this.layerNodes[k], character = this.lib[k].character;
+    n.g.gain.setValueAtTime(gain, when);
+    n.target = gain;
+    if (!character) return;
+    const c = this.ctx, motion = c.createGain();
+    n.g.disconnect(); n.g.connect(motion); motion.connect(this.ambBus);
+    n.motion = motion;
+    const speed = this.speed || 1;
+    if (timing.points) {
+      const level = rate => .10 + .90 * (rate - .48) / .52;
+      motion.gain.setValueAtTime(level(timing.rate), when);
+      n.s.playbackRate.setValueAtTime(timing.rate * speed, when);
+      for (const [time, rate] of timing.points) {
+        if (time <= t) continue;
+        const at = when + (time - t) / speed;
+        motion.gain.linearRampToValueAtTime(level(rate), at);
+        n.s.playbackRate.linearRampToValueAtTime(rate * speed, at);
+      }
+      this._railReflections(motion, t, when);
+    } else if (character === 'weather' || character === 'water') {
+      // Slow, unrelated swells keep fixed-duration field loops from breathing together.
+      const swell = time => 1 + .14 * Math.sin(time / 13.7 + k.length)
+        + .08 * Math.sin(time / 31.1 + k.charCodeAt(0));
+      const levelAt = time => {
+        const left = Math.floor(time / 5) * 5;
+        return swell(left) + (swell(left + 5) - swell(left)) * (time - left) / 5;
+      };
+      motion.gain.setValueAtTime(levelAt(t), when);
+      let end = t;
+      for (const it of this.plan?.items || []) {
+        if (it.end <= t) continue;
+        if (!it.ambience?.some(layer => layer.layer === k)) break;
+        end = it.end;
+      }
+      for (let time = (Math.floor(t / 5) + 1) * 5; time <= end + 5; time += 5) {
+        motion.gain.linearRampToValueAtTime(swell(time), when + (time - t) / speed);
+      }
+    }
+  }
+
+  // Short, band-limited reflections of the actual wheels under masonry and inside
+  // the tunnel. Schedule on the audio clock so background tabs retain the cues.
+  _railReflections(dry, t, when) {
+    const passages = [];
+    let lastTunnel = null;
+    for (const item of this.plan.items) {
+      if (item.scene?.exitCut && this.plan.items[item.i + 1]?.kind === 'cruise' && item.end + 4 > t)
+        passages.push({ start: item.end - 4, end: item.end + 4, gain: .23 });
+      if (item.scene?.landmark?.type === 'tunnel' && item.lmWin && item.lmWin[0] !== lastTunnel) {
+        lastTunnel = item.lmWin[0];
+        if (item.lmWin[1] > t) passages.push({ start: lastTunnel, end: item.lmWin[1], gain: .40 });
+      }
+    }
+    if (!passages.length) return;
+    const delay = this.ctx.createDelay(.1), tone = this.ctx.createBiquadFilter(), wet = this.ctx.createGain();
+    delay.delayTime.value = .049;
+    tone.type = 'lowpass'; tone.frequency.value = 1450; tone.Q.value = .6;
+    dry.connect(delay); delay.connect(tone); tone.connect(wet); wet.connect(this.ambBus);
+    wet.gain.value = 0;
+    for (const { start, end, gain } of passages) {
+      const edge = Math.min(2.5, (end - start) / 2);
+      wet.gain.setValueAtTime(gain * Math.max(0, Math.min(1, (t - start) / edge, (end - t) / edge)),
+        when + Math.max(0, start - t) / this.speed);
+      for (const [time, level] of [[start + edge, gain], [end - edge, gain], [end, 0]]) {
+        if (time > t) wet.gain.linearRampToValueAtTime(level, when + (time - t) / this.speed);
+      }
+    }
+  }
+
   /** Create looping nodes (gain 0) for every decoded layer; later layers are added as they finish decoding. */
   startLayers() {
     const c = this.ctx; if (!c || this.layerNodes) return;
@@ -188,21 +279,18 @@ export class SessionAudio {
     Object.keys(this.lib || {}).forEach(k => this._addLayerNode(k));
   }
   /** Ramp every layer to its gain in `layers` ([{layer, gain}]) over `sec` seconds; others fade to 0. */
-  setLayers(layers, sec = 4) {
+  setLayers(layers, sec = 4, pos = this.audioPos()) {
     const c = this.ctx; if (!c || !this.layerNodes) return;
     this.lastLayers = layers;
     const want = {}; (layers || []).forEach(l => { if (this.lib[l.layer]) want[l.layer] = (l.gain ?? 1) * (this.lib[l.layer].gain ?? 1); });
     const now = c.currentTime;
     // Newly audible loops start at the same clip offset as a seek to this instant.
-    const pos = this.audioPos();
     const periods = this.plan ? layersAt(pos, this.plan).periodStart : {};
     for (const k of Object.keys(want)) {
       const old = this.layerNodes[k];
       if (old?.target > 0) continue;
-      if (old) { old.s.stop(now); old.s.disconnect(); old.g.disconnect(); delete this.layerNodes[k]; }
-      const duration = this.lib[k].buf.duration;
-      const offset = layerOffset(pos, periods[k] ?? pos, duration > 2 ? .05 : 0, duration > 2 ? duration - .03 : duration);
-      this._addLayerNode(k, now, offset);
+      if (old) { old.s.stop(now); old.s.disconnect(); old.g.disconnect(); old.motion?.disconnect(); delete this.layerNodes[k]; }
+      this._startAudibleLayer(k, pos, now, periods[k] ?? pos, 0);
     }
     for (const [k, n] of Object.entries(this.layerNodes)) {
       const t = want[k] || 0; if (Math.abs(t - n.target) < 1e-4) continue;
@@ -249,7 +337,7 @@ export class SessionAudio {
       const buf = this.lib?.[L.layer]?.buf;
       const dur = buf?.duration || 0;
       const ls = dur > 2 ? 0.05 : 0, le = dur > 2 ? dur - 0.03 : dur;
-      return { layer: L.layer, offset: layerOffset(t, lay.periodStart[L.layer] ?? 0, ls, le), target: (L.gain ?? 1) * (this.lib?.[L.layer]?.gain ?? 1), loopStart: ls, loopEnd: le };
+      return { layer: L.layer, offset: buf ? this._layerTiming(L.layer, t, lay.periodStart[L.layer] ?? 0).offset : 0, target: (L.gain ?? 1) * (this.lib?.[L.layer]?.gain ?? 1), loopStart: ls, loopEnd: le };
     });
     return { t, song: mus.primary, voices: mus.voices, run: mus.run, buses, layers, item: { id: lay.id, label: lay.label, kind: lay.kind, start: lay.start, end: lay.end, index: lay.item } };
   }
@@ -272,16 +360,7 @@ export class SessionAudio {
     this.chimeNodes = [];
     for (const b of [this.musicBus.gain, this.ambBus.gain]) { b.cancelScheduledValues(0); }
     const segs = tl.segs;
-    const lvl = (seg) => {
-      if (!seg) return { m: 0, a: 0 };
-      switch (seg.type) {
-        case 'intro': return { m: 1.0, a: 0.8 };
-        case 'sprint': return { m: 1.0, a: 0.65 };   // train bed sat ~-4 dB under the music live (a bit hot): ~-8 dB now, still clearly audible on phone speakers
-        case 'break': return { m: 0.0, a: 1.0 };   // music out, ambience swells
-        case 'outro': return { m: 0.8, a: 0.7 };
-        default: return { m: 0, a: 0 };
-      }
-    };
+    const lvl = lvlOf;
     const mv = this.vol.music, av = this.vol.amb;
     const cur = segs.findIndex(s => pos >= s.start && pos < s.end);
     const first = lvl(segs[Math.max(0, cur)]);
@@ -331,6 +410,14 @@ export class SessionAudio {
 
   /** Keep ≥150s of music chained ahead. The current song loops into itself with the strong-a fade
    *  (8 s out to silence, next starts 1.5 s before the end and fades in over 6 s) until advanceSong(). */
+  _connectMusic(source, envelope, track) {
+    source.connect(envelope);
+    if (track.mixGain == null) { envelope.connect(this.musicBus); return; }
+    const trim = this.ctx.createGain();
+    trim.gain.value = track.mixGain;
+    envelope.connect(trim); trim.connect(this.musicBus);
+  }
+
   ensureMusic(force) {
     const c = this.ctx; if (!c || !this.tracks.length || this.musicHalted) return;
     if (!this.musicEnd || this.musicEnd < c.currentTime) this.musicEnd = c.currentTime + 0.2;
@@ -338,7 +425,7 @@ export class SessionAudio {
     while (this.musicEnd - c.currentTime < this.musicLookahead && guard++ < 60) {
       const k = Math.max(0, Math.min(this.songIndex, this.tracks.length - 1));
       const tr = this.tracks[k], s = c.createBufferSource(), g = c.createGain();
-      s.buffer = tr.buf; s.connect(g); g.connect(this.musicBus);
+      s.buffer = tr.buf; this._connectMusic(s, g, tr);
       const start = this.musicEnd, dur = tr.buf.duration;
       const fo = Math.min(this.fadeOut, dur * 0.4);
       const fi = Math.min(this.fadeIn, dur * 0.4);
@@ -356,6 +443,10 @@ export class SessionAudio {
       s.start(start);
       const entry = { title: tr.title, artist: tr.artist, start, end: start + dur, src: s, index: k };
       this.musicSrcs.push(s); this.musicQueue.push(entry); this.musicEnd = start + dur - ov;
+      if (this.rotation?.length) {
+        const next = (this.rotation.findIndex(song => song.src === tr.src) + 1) % this.rotation.length;
+        this.songIndex = this.tracks.findIndex(track => track.src === this.rotation[next].src);
+      }
       s.onended = () => {
         this.musicSrcs = this.musicSrcs.filter(x => x !== s);
         this.musicQueue = this.musicQueue.filter(q => q !== entry);
@@ -430,21 +521,12 @@ export class SessionAudio {
     });
     for (const [k, n] of Object.entries(this.layerNodes)) {
       try { n.s.stop(when); } catch (e) {}
-      try { n.s.disconnect(); n.g.disconnect(); } catch (e) {}
+      try { n.s.disconnect(); n.g.disconnect(); n.motion?.disconnect(); } catch (e) {}
       delete this.layerNodes[k];
     }
     for (const k of Object.keys(want)) {
       const v = this.lib[k]; if (!v?.buf) continue;
-      const s = c.createBufferSource(), g = c.createGain();
-      s.buffer = v.buf; s.loop = true;
-      const dur = v.buf.duration;
-      const ls = dur > 2 ? 0.05 : 0, le = dur > 2 ? dur - 0.03 : dur;
-      s.loopStart = ls; s.loopEnd = le;
-      const off = layerOffset(t, lay.periodStart[k] ?? 0, ls, le);
-      s.connect(g); g.connect(this.ambBus);
-      g.gain.setValueAtTime(want[k], when);
-      try { s.start(when, off); } catch (e) { try { s.start(when); } catch (err) {} }
-      this.layerNodes[k] = { s, g, target: want[k] };
+      this._startAudibleLayer(k, t, when, lay.periodStart[k] ?? 0, want[k]);
     }
     this.lastLayers = lay.layers;
   }
@@ -497,7 +579,7 @@ export class SessionAudio {
         const tr = (this.tracks || []).find(x => x.src === v.src) || this.tracks[v.index];
         if (!tr?.buf) continue;
         const s = c.createBufferSource(), g = c.createGain();
-        s.buffer = tr.buf; s.connect(g); g.connect(this.musicBus);
+        s.buffer = tr.buf; this._connectMusic(s, g, tr);
         this._automateVoice(g, v, when, tr.buf.duration);
         const off = Math.max(0, Math.min(v.offset, Math.max(0, tr.buf.duration - 0.001)));
         try { s.start(when, off); } catch (e) { try { s.start(when); } catch (err) {} }
@@ -512,6 +594,11 @@ export class SessionAudio {
         const last = mus.voices[mus.voices.length - 1];
         this.musicEnd = when + (mus.duration - last.offset) - this.fadeOverlap;
       } else this.musicEnd = when + 0.2;
+      this.rotation = mus.run.rotation ? mus.rotation : null;
+      if (this.rotation?.length) {
+        const next = this.rotation[(mus.primary.k + 1) % this.rotation.length];
+        this.songIndex = this.tracks.findIndex(track => track.src === next.src);
+      } else this.songIndex = this.tracks.findIndex(track => track.src === mus.primary.src);
       this.ensureMusic();
     } else {
       this.musicEnd = 0;
@@ -548,15 +635,13 @@ export class SessionAudio {
     }
     segs.forEach((seg, i) => {
       if (i === 0) return;
-      if (seg.start <= pos + 0.01) return;
       const prev = lvlOf(segs[i - 1]), next = lvlOf(seg);
       if (prev.m === next.m && prev.a === next.a) return;
       const when = T(seg.start);
       let m0, m1;
-      if (next.m < prev.m) { m0 = when - this.breakFadeOut; m1 = when; }
-      else { m0 = when; m1 = when + this.sprintFadeIn; }
+      if (next.m < prev.m) { m0 = when - this.breakFadeOut / this.speed; m1 = when; }
+      else { m0 = when; m1 = when + this.sprintFadeIn / this.speed; }
       if (m1 <= settle) return;
-      if (m0 < settle) m0 = settle;
       if (prev.m !== next.m) this._ramp(this.musicBus.gain, prev.m * mv, next.m * mv, m0, m1, settle);
       if (prev.a !== next.a) this._ramp(this.ambBus.gain, prev.a * av, next.a * av, m0, m1, settle);
     });
@@ -585,7 +670,7 @@ export class SessionAudio {
     this.musicSrcs.forEach(s => { try { s.stop(); } catch (e) {} });
     this.chimeNodes.forEach(n => { try { n.stop(); } catch (e) {} });
     this.musicSrcs = []; this.musicQueue = []; this.chimeNodes = []; this.ambSrc = null; this.musicEnd = 0; this.songIndex = 0;
-    this.tracks = []; this.ambBuf = null; this.anchor = null;
+    this.rotation = null; this.tracks = []; this.ambBuf = null; this.anchor = null;
     // keep ctx alive (created from a gesture) for reuse
     this.musicBus?.gain.cancelScheduledValues(0); this.ambBus?.gain.cancelScheduledValues(0);
     if (this.musicBus) { this.musicBus.gain.value = 0; this.ambBus.gain.value = 0; }

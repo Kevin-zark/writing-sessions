@@ -221,7 +221,7 @@ export class Player {
   _applyItem(i, instant) {
     this._item = i; const it = this.plan.items[i]; if (!it) return;
     const sec = instant ? 0.05 : Math.max(0.3, Math.min(8, (it.kind === 'bridge' ? (it.end - it.start) : it.kind === 'cruise' ? 6 : 4) / this.speed));
-    this.audio.setLayers(it.ambience, sec);
+    this.audio.setLayers(it.ambience, sec, Math.max(it.start, this.audio.audioPos()));
     this.el.scene.textContent = it.label || '';
   }
   async _enterLeg(lg) {
@@ -258,7 +258,7 @@ export class Player {
     // If the leg is also changing, _enterLeg starts at song 0 of the new list — do not increment the old list.
     if (seg.type === 'sprint' && (seg.n || 0) > 1) {
       const lg = legAt(this.plan, seg.start);
-      if (lg === this.curLeg && !this._syncing) this.audio.advanceSong();
+      if (lg === this.curLeg && !this._syncing) this.syncTo(this.clock.pos());
     }
   }
 

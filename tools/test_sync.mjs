@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { buildTimeline, DEFAULT_SETTINGS, INTRO_SEC } from '../js/engine.js';
 import { planJourney } from '../js/journey.js';
-import { buildMusicRuns, musicAt, busAt, FADE } from '../js/sync.js';
+import { buildMusicRuns, musicAt, busAt, wheelMotion, wheelPosition, FADE } from '../js/sync.js';
 
 const m = JSON.parse(readFileSync(new URL('../themes/dark-academia-train/manifest.json', import.meta.url), 'utf8'));
 const tl = buildTimeline({ ...DEFAULT_SETTINGS, sprintMin: 25, breakMin: 5, sprints: 4, intro: true, outro: true });
@@ -37,7 +37,7 @@ check('in first fade-out, still A k=0, gain mid', mfo.primary?.k === 0 && mfo.pr
 
 const overlapT = join - 0.5; // last 0.5s of play 0 + play 1 fade-in
 const ov = musicAt(overlapT, runs, durs);
-check('at overlap: two A voices', ov.voices.length === 2 && ov.voices[0].k === 0 && ov.voices[1].k === 1, ov.voices.map(v => ({ k: v.k, off: +v.offset.toFixed(3), g: +v.gain.toFixed(3) })));
+check('at overlap: second arrangement enters', ov.voices[1]?.index === 1 && ov.voices.length === 2 && ov.voices[0].k === 0 && ov.voices[1].k === 1, ov.voices.map(v => ({ k: v.k, off: +v.offset.toFixed(3), g: +v.gain.toFixed(3) })));
 
 const after = join + 1; // play 0 ended, play 1 at offset 1.5+1=2.5? play 1 starts at join-1.5, so offset = 1 - (-1.5 wait)
 // start_1 = 0 + 1*(134.52-1.5) = 133.02, offset at t=135.52 = 2.5, still in 6s fade-in
@@ -85,6 +85,20 @@ for (let count = 2; count <= 12; count++) {
     journey.items.some(it => it.start === b.start && it.end === b.end && it.station > 0 && it.still && !it.clip) &&
     journey.legSpans.every(span => span.end <= b.start || span.start >= b.end)));
 }
+
+const thirdPlay = musicAt(134.52 + 60.024 - 2 * FADE.overlap + 2, runs, durs);
+check('Score returns to A on its clock after B finishes', thirdPlay.primary?.index === 0 && Math.abs(thirdPlay.primary.offset - 2) < 1e-5);
+const roll = wheelMotion(plan.legSpans[0], m.legs[0]);
+const depart = plan.legSpans[0].start, arrive = plan.legSpans[0].end;
+check('Wheels accelerate from the platform', wheelPosition(roll, depart).rate === .48 &&
+  Math.abs(wheelPosition(roll, depart + 12).seconds - 8.88) < 1e-5);
+check('Wheel phase and cadence agree while braking', Math.abs(wheelPosition(roll, arrive - 7).rate - .74) < 1e-5 &&
+  Math.abs(wheelPosition(roll, arrive).seconds - wheelPosition(roll, arrive - 14).seconds - 10.36) < 1e-5);
+const brief = buildTimeline({ ...DEFAULT_SETTINGS, sprints: 1, sprintMin: 25, intro: true, outro: true });
+const shortPlan = planJourney(brief, m);
+const score = buildMusicRuns(brief, shortPlan, m.legs);
+check('One-sprint journey changes themes with the landscape', shortPlan.legSpans.every(span =>
+  musicAt(span.start + 1, score, durs).run.song.legId === span.id));
 
 if (fail) { console.log(fail, 'FAILED'); process.exit(1); }
 console.log('all sync tests passed');

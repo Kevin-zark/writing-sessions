@@ -22,7 +22,8 @@ Overlay: lower-left `SPRINT n/N` / `BREAK` over a large `MM:SS`, thin progress b
 Web Audio (iOS ignores `<audio>.volume`, so fades use GainNodes). Everything is scheduled on the audio clock so it stays on time even when
 the page is throttled with the screen locked.
 * **Chimes** are synthesized bell partials (no samples) at every transition: start, sprint (rising pair), break (falling pair), outro, end.
-* **Music** (the pack's tracks, shuffled, 3 s crossfades) fades out at each break and back in for the next sprint; the **ambience** loop swells up during breaks.
+* **Music** follows the train's current chapter. Its two arrangements take turns with overlapping fades. The three break platforms have ambience only, and arrival has its own pair of themes.
+* Wheel cadence and volume follow the platform approach and departure. Rain, wind and water vary gently on the session clock, and the wheel sound reflects off nearby masonry and the tunnel walls. Seeking restores the arrangement, wheel phase and weather mix.
 * A silent looping `<audio>` element keeps the iOS audio session alive and gives lock-screen controls (Media Session metadata + play/pause/next/prev).
 * Screen stays awake with the Wake Lock API; falls back to a hidden 1-px looping video if unavailable/denied.
 Audio only starts from the *Begin session* tap (iOS requirement).

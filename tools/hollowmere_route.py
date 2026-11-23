@@ -73,6 +73,28 @@ def integrate_landmarks(manifest):
                 view.pop('landmark', None)
                 view.pop('mid', None)
 
+    balance_soundtrack(manifest)
+
+
+def balance_soundtrack(manifest):
+    manifest['version'] = 11
+    # Source loudness differs between the two interior recordings by almost 10 LU.
+    settings = {'train': (1.16, 'wheels'), 'train_soft': (2.95, 'wheels'),
+                'rain_glass': (2.8, 'weather'), 'forest_wind': (3.15, 'weather'),
+                'wind_high': (2.2, 'weather'), 'blizzard': (2.25, 'weather'),
+                'lake_lap': (4.3, 'water'), 'stream': (3.25, 'water')}
+    for name, (gain, character) in settings.items():
+        manifest['ambienceLib'][name].update(gain=gain, character=character)
+    for layer in manifest['stations'][1]['ambience']:
+        if layer['layer'] == 'city_s1':
+            layer['gain'] = 1.85
+    # Match chapter music around -20.5 LUFS before the listener's volume control.
+    trims = [[.49, .53], [.70, .69], [.64, .60], [.68, .72, .49, .54]]
+    for leg, gains in zip(manifest['legs'], trims):
+        leg['pairedScore'] = True
+        for song, gain in zip(leg['music'], gains):
+            song['mixGain'] = gain
+
 
 VIEWS = [
     ('city', 'wealthy-quarter', 'castle-green', 'The castle green', 'city/m1', 0, 0, [('bells', 0.2)]),

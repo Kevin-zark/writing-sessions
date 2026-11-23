@@ -13,7 +13,7 @@
   "requestedBy": null
  },
  "createdAt": "2026-11-21",
- "version": 10,
+ "version": 11,
  "designedFor": {
   "sprintMin": 25,
   "breakMin": 5,
@@ -64,7 +64,7 @@
  "ambienceLib": {
   "train": {
    "src": "audio/amb/train-164766.mp3",
-   "gain": 3.1783,
+   "gain": 1.16,
    "title": "Carriage rumble + wheel clatter from an in-carriage recording, mid-boosted with extra rail-joint clacks so phone speakers can reproduce it (moving legs)",
    "sourceId": "164766",
    "qa": {
@@ -73,11 +73,12 @@
     "true_peak_dbfs": -0.8,
     "seam_level_jump_db": 0.47,
     "clipped_samples": 0
-   }
+   },
+   "character": "wheels"
   },
   "train_soft": {
    "src": "audio/amb/train_soft-164766.mp3",
-   "gain": 2.5119,
+   "gain": 2.95,
    "title": "Same in-carriage recording, low-passed: wheels muffled by snow",
    "sourceId": "164766",
    "qa": {
@@ -86,7 +87,8 @@
     "true_peak_dbfs": -8.0,
     "seam_level_jump_db": 0.11,
     "clipped_samples": 0
-   }
+   },
+   "character": "wheels"
   },
   "city": {
    "src": "audio/amb/city.mp3",
@@ -116,7 +118,7 @@
   },
   "rain_glass": {
    "src": "audio/amb/rain_glass.mp3",
-   "gain": 2.5119,
+   "gain": 2.8,
    "title": "Light rain on the window",
    "sourceId": "235827",
    "qa": {
@@ -125,11 +127,12 @@
     "true_peak_dbfs": -3.3,
     "seam_level_jump_db": -0.17,
     "clipped_samples": 0
-   }
+   },
+   "character": "weather"
   },
   "lake_lap": {
    "src": "audio/amb/lake_lap.mp3",
-   "gain": 3.5167,
+   "gain": 4.3,
    "title": "Lake water lapping, heard through glass",
    "sourceId": "614299",
    "qa": {
@@ -138,11 +141,12 @@
     "true_peak_dbfs": -3.5,
     "seam_level_jump_db": 3.23,
     "clipped_samples": 0
-   }
+   },
+   "character": "water"
   },
   "forest_wind": {
    "src": "audio/amb/forest_wind.mp3",
-   "gain": 2.5119,
+   "gain": 3.15,
    "title": "Soft wind in winter pines",
    "sourceId": "352436",
    "qa": {
@@ -151,11 +155,12 @@
     "true_peak_dbfs": -12.7,
     "seam_level_jump_db": 0.37,
     "clipped_samples": 0
-   }
+   },
+   "character": "weather"
   },
   "stream": {
    "src": "audio/amb/stream.mp3",
-   "gain": 2.5119,
+   "gain": 3.25,
    "title": "Running water under ice / below the bridge",
    "sourceId": "318064",
    "qa": {
@@ -164,11 +169,12 @@
     "true_peak_dbfs": -3.6,
     "seam_level_jump_db": -6.43,
     "clipped_samples": 0
-   }
+   },
+   "character": "water"
   },
   "wind_high": {
    "src": "audio/amb/wind_high.mp3",
-   "gain": 2.5119,
+   "gain": 2.2,
    "title": "Mountain wind",
    "sourceId": "117513",
    "qa": {
@@ -177,11 +183,12 @@
     "true_peak_dbfs": -10.9,
     "seam_level_jump_db": -0.35,
     "clipped_samples": 0
-   }
+   },
+   "character": "weather"
   },
   "blizzard": {
    "src": "audio/amb/blizzard.mp3",
-   "gain": 2.5119,
+   "gain": 2.25,
    "title": "Howling blizzard gusts",
    "sourceId": "117513",
    "qa": {
@@ -190,7 +197,8 @@
     "true_peak_dbfs": -7.2,
     "seam_level_jump_db": 0.51,
     "clipped_samples": 0
-   }
+   },
+   "character": "weather"
   },
   "window_whistle": {
    "src": "audio/amb/window_whistle.mp3",
@@ -300,7 +308,7 @@
    "ambience": [
     {
      "layer": "city_s1",
-     "gain": 3.2293
+     "gain": 1.85
     }
    ]
   },
@@ -372,12 +380,14 @@
     {
      "title": "Letters by Lamplight",
      "src": "audio/letters-by-lamplight-a.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.49
     },
     {
      "title": "Letters by Lamplight (II)",
      "src": "audio/letters-by-lamplight-b.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.53
     }
    ],
    "speed": 1.0,
@@ -601,7 +611,8 @@
      "paintedStrips": true,
      "panBackdrop": true
     }
-   ]
+   ],
+   "pairedScore": true
   },
   {
    "id": "lake",
@@ -622,12 +633,14 @@
     {
      "title": "Rain over Wrenmere Lake",
      "src": "audio/rain-over-wrenmere-lake-a.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.7
     },
     {
      "title": "Rain over Wrenmere Lake (II)",
      "src": "audio/rain-over-wrenmere-lake-b.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.69
     }
    ],
    "speed": 1.0,
@@ -765,7 +778,8 @@
       }
      ]
     }
-   ]
+   ],
+   "pairedScore": true
   },
   {
    "id": "forest",
@@ -786,12 +800,14 @@
     {
      "title": "Snowbound Compartment",
      "src": "audio/snowbound-compartment-a.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.64
     },
     {
      "title": "Snowbound Compartment (II)",
      "src": "audio/snowbound-compartment-b.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.6
     }
    ],
    "speed": 0.8,
@@ -904,7 +920,8 @@
       }
      ]
     }
-   ]
+   ],
+   "pairedScore": true
   },
   {
    "id": "mountains",
@@ -925,22 +942,26 @@
     {
      "title": "The High Pass",
      "src": "audio/the-high-pass-a.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.68
     },
     {
      "title": "The High Pass (II)",
      "src": "audio/the-high-pass-b.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.72
     },
     {
      "title": "Arrival at Hollowmere",
      "src": "audio/arrival-at-hollowmere-a.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.49
     },
     {
      "title": "Arrival at Hollowmere (II)",
      "src": "audio/arrival-at-hollowmere-b.mp3",
-     "artist": "fullslopstudios (Suno)"
+     "artist": "fullslopstudios (Suno)",
+     "mixGain": 0.54
     }
    ],
    "speed": 0.9,
@@ -1109,7 +1130,8 @@
      "near": "zones/forest/winter-bank.webp"
     }
    ],
-   "arrivalMusicIndex": 2
+   "arrivalMusicIndex": 2,
+   "pairedScore": true
   }
  ],
  "credits": [
