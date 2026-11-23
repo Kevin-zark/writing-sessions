@@ -407,9 +407,9 @@
     {
      "id": "industrial-docks",
      "title": "Ravensgate industrial docks",
-     "backdrop": "zones/city/docks-bg.png",
-     "mid": "zones/city/docks-mid.png",
-     "near": "zones/city/docks-fg.png",
+     "backdrop": "zones/city/docks-bg.webp",
+     "mid": "zones/city/docks-mid.webp",
+     "near": "zones/city/docks-fg.webp",
      "paintedStrips": true,
      "exitCut": "bridge",
      "introViewSeconds": 60,

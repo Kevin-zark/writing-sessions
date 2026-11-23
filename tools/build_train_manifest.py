@@ -79,7 +79,7 @@ m = {
 for li, g in enumerate(LEGS):
     a, b = stations[li][0], stations[li + 1][0]; z = g['zone']; segs = []
     if z == 'city':
-        segs.append({'id': 'industrial-docks', 'title': 'Ravensgate industrial docks', 'backdrop': 'zones/city/docks-bg.png', 'mid': 'zones/city/docks-mid.png', 'near': 'zones/city/docks-fg.png', 'paintedStrips': True, 'exitCut': 'bridge', 'introViewSeconds': 60, 'fog': {'color': '#879ba3', 'far': 0.46, 'near': 0.3}})
+        segs.append({'id': 'industrial-docks', 'title': 'Ravensgate industrial docks', 'backdrop': 'zones/city/docks-bg.webp', 'mid': 'zones/city/docks-mid.webp', 'near': 'zones/city/docks-fg.webp', 'paintedStrips': True, 'exitCut': 'bridge', 'introViewSeconds': 60, 'fog': {'color': '#879ba3', 'far': 0.46, 'near': 0.3}})
     for sid, st, bd, md, lm, amb, wx, at in g['segs']:
         if lm == 'tunnel': L_ = {'type': 'tunnel', 'dur': 24, 'at': at, 'ambience': [L('tunnel', .9), L('wind_high', 0), L('train', .6)]}   # extra layers only while the tunnel passes
         else: w, h = LM[f'{z} {lm}']; L_ = {'src': f'zones/{z}/{lm}.jpg', 'w': w, 'h': h, 'dur': 26, 'at': at, 'height': .85, 'base': .95}
