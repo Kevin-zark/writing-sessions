@@ -28,7 +28,9 @@ export class WindowRenderer {
     this.idx = -1; this.run = false;
     this._buildDistance();
     this.stripOrigins = new Map();
+    this.vistaEnds = new Map();
     for (const item of plan.items) {
+      if (item.scene?.panBackdrop) this.vistaEnds.set(item.scene, this.dist(item.end));
       if (item.scene?.paintedStrips && !this.stripOrigins.has(item.scene)) {
         this.stripOrigins.set(item.scene, this.dist(item.start));
       }
@@ -63,7 +65,7 @@ export class WindowRenderer {
     img.onload = () => { e.ok = true; }; img.onerror = () => { e.err = true; };
     img.src = this.base + src; return e;
   }
-  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, this.crossings[s.exitCut]].filter(Boolean); }
+  _assetsOf(it) { const s = it?.scene; if (!s) return []; return [s.backdrop, s.mid, s.near, s.landmark?.src, s.landmark?.type === 'tunnel' && this.cfg.tunnelWall, this.crossings[s.exitCut]].filter(Boolean); }
   /** Which cruise item is current; preloads its assets and the next few, frees the rest. */
   setItem(idx) {
     this.idx = idx; const items = this.plan.items, want = new Set([this.cfg.frame?.src, this.frame?.src]);
@@ -141,6 +143,18 @@ export class WindowRenderer {
         if (!src) return;
         const painted = scene.paintedStrips;
         const distance = painted ? F - this.stripOrigins.get(scene) : F;
+        if (key === 'backdrop' && scene.panBackdrop) {
+          const plate = this._img(src);
+          if (!plate.ok) return;
+          const span = this.vistaEnds.get(scene) - this.stripOrigins.get(scene);
+          const progress = clamp01(distance / Math.max(1, span));
+          const scale = Math.max(P.w * 1.22 / plate.img.naturalWidth, P.h * 1.03 / plate.img.naturalHeight);
+          const w = plate.img.naturalWidth * scale, h = plate.img.naturalHeight * scale;
+          c.globalAlpha = alpha;
+          c.drawImage(plate.img, P.x - progress * (w - P.w), P.y - (h - P.h) / 2, w, h);
+          c.globalAlpha = 1;
+          return;
+        }
         this._tile(this._img(src), speed, distance, painted ? 0 : ph(src), alpha,
           painted ? 'source-over' : comp, painted ? 0 : shift);
       };
@@ -150,15 +164,17 @@ export class WindowRenderer {
     layer('backdrop', sc.backdrop, 'source-over');
     const fg = S.fog || {}; const fogC = fg.color || '#aab4c4';
     this._fog(fogC, (fg.far ?? 0.35), sc.fogFar, F, 0.13, 0.28, 0.7);
+    // A passing landmark sits behind the shoreline, tree line or nearer rock shelf.
+    const lm = S.landmark;
+    if (lm && S.paintedStrips) this._landmark(it, lm, pos, F, sc);
     layer('mid', sc.mid, 'multiply');
-    // landmark pass-by: slides across the pane once
-    const lm = S.landmark; if (lm) this._landmark(it, lm, pos, F, sc);
+    if (lm && !S.paintedStrips) this._landmark(it, lm, pos, F, sc);
     this._fog(fogC, (fg.near ?? 0.28), sc.fogNear, F, 0.61, 0.5, 0.62);
     layer('near', sc.near, 'multiply', P.h * 0.015 * Math.sin(pos * 9.1) * swaySpeed);
     // weather
     this._weather(S, pv, a, pos, F, sp);
     // tunnel darkness (procedural landmark)
-    if (lm && lm.type === 'tunnel') this._tunnel(it, lm, pos);
+    if (lm && lm.type === 'tunnel') this._tunnel(it, lm, pos, F);
     if (arriving) this._crossing(arriving, pos - it.start);
     if (departing) this._crossing(departing, pos - it.end);
     // light: slow cloud drift + glass vignette
@@ -189,18 +205,28 @@ export class WindowRenderer {
     const c = this.c, P = this.pane, dh = P.h * (lm.height ?? 0.85), dw = dh * (lm.w && lm.h ? lm.w / lm.h : e.img.naturalWidth / e.img.naturalHeight);
     const u = (pos - win[0]) / (win[1] - win[0]), x = P.x + P.w + dw * 0.02 - u * (P.w + dw * 1.04), y = P.y + P.h * (lm.base ?? 0.95) - dh;
     const edge = smooth(u * 6) * smooth((1 - u) * 6);
-    c.globalCompositeOperation = 'multiply'; c.globalAlpha = (lm.alpha ?? 0.95) * (0.35 + 0.65 * edge);
+    c.globalCompositeOperation = it.scene.paintedStrips ? 'source-over' : 'multiply'; c.globalAlpha = (lm.alpha ?? 0.95) * (0.35 + 0.65 * edge);
     c.drawImage(e.img, x, y, dw, dh); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
   }
-  _tunnel(it, lm, pos) {
+  _tunnel(it, lm, pos, F) {
     const win = this._landmarkWindow(it); if (!win) return; const t = pos - win[0], dur = win[1] - win[0]; if (t < -1 || t > dur + 1) return;
     const d = smooth(t / 3) * smooth((dur - t) / 3), c = this.c, P = this.pane;
-    c.fillStyle = `rgba(2,2,4,${0.97 * d})`; c.fillRect(P.x, P.y, P.w, P.h);
-    if (d > 0.3) for (let k = 0; k < 4; k++) {            // wall lamps rushing past
-      const period = 1.1, ph = mod(t / period + k * 0.27, 1), x = P.x + P.w - ph * (P.w + 200) + 100, f = 0.5 + 0.5 * Math.sin(t * 11 + k);
-      const gr = c.createLinearGradient(x - 90, 0, x + 90, 0); gr.addColorStop(0, 'rgba(255,200,120,0)'); gr.addColorStop(0.5, `rgba(255,205,130,${0.30 * d * f})`); gr.addColorStop(1, 'rgba(255,200,120,0)');
-      c.fillStyle = gr; c.fillRect(x - 90, P.y, 180, P.h);
-    }
+    const wall = this._img(this.cfg.tunnelWall);
+    if (wall?.ok) this._tile(wall, 235, F, 0, d, 'source-over');
+    c.fillStyle = `rgba(6,9,12,${(wall?.ok ? .76 : .97) * d})`;
+    c.fillRect(P.x, P.y, P.w, P.h);
+    if (d < .01) return;
+    const radius = P.h * .32, period = P.w * 1.32;
+    const x = P.x + P.w + radius - mod(F * 235 * P.h / 720, period);
+    const y = P.y + P.h * .43;
+    const glow = c.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, `rgba(224,158,77,${.32 * d})`);
+    glow.addColorStop(1, 'rgba(224,158,77,0)');
+    c.fillStyle = glow; c.fillRect(x-radius,y-radius,radius*2,radius*2);
+    c.fillStyle = `rgba(22,22,20,${d})`;
+    c.fillRect(x-5,y-9,10,18);
+    c.fillStyle = `rgba(246,194,114,${.90*d})`;
+    c.fillRect(x-2.5,y-6,5,11);
   }
   _weather(S, pv, a, pos, F, sp) {
     const c = this.c, P = this.pane, R = P.h / 720;
@@ -211,7 +237,7 @@ export class WindowRenderer {
       c.strokeStyle = 'rgba(205,220,238,0.33)'; c.lineWidth = Math.max(1, R * 1.1); c.beginPath();
       for (let i = 0; i < N; i++) {
         const sy = (520 + 420 * hash(i, 2)) * R, len = (10 + 20 * hash(i, 3)) * R, slant = (0.22 + 0.5 * spd * 0.35) * len;
-        const x = mod(hash(i, 1) * (P.w + 80) - pos * 40 * R * spd, P.w + 80) - 40, y = mod(hash(i, 4) * (P.h + 60) + pos * sy, P.h + 60) - 30;
+        const x = mod(hash(i, 1) * (P.w + 80) - (F * 34 + pos * 6) * R, P.w + 80) - 40, y = mod(hash(i, 4) * (P.h + 60) + pos * sy, P.h + 60) - 30;
         c.moveTo(P.x + x, P.y + y); c.lineTo(P.x + x - slant, P.y + y + len);
       }
       c.stroke();
@@ -225,8 +251,8 @@ export class WindowRenderer {
     if (snow > 0.01) {
       const N = Math.round(130 * snow); c.fillStyle = 'rgba(244,248,255,0.85)';
       for (let i = 0; i < N; i++) {
-        const z = hash(i, 11), r = (0.9 + 2.4 * z) * R, vx = (30 + 150 * z) * Math.max(0.2, sp) * R, vy = (22 + 40 * z) * R;
-        const x = mod(hash(i, 12) * (P.w + 60) - pos * vx + Math.sin(pos * 0.7 + i) * 8 * R, P.w + 60) - 30, y = mod(hash(i, 13) * (P.h + 40) + pos * vy, P.h + 40) - 20;
+        const z = hash(i, 11), r = (0.9 + 2.4 * z) * R, vx = (30 + 150 * z) * R, vy = (22 + 40 * z) * R;
+        const x = mod(hash(i, 12) * (P.w + 60) - (F * .8 + pos * .2) * vx + Math.sin(pos * 0.7 + i) * 8 * R, P.w + 60) - 30, y = mod(hash(i, 13) * (P.h + 40) + pos * vy, P.h + 40) - 20;
         c.globalAlpha = 0.35 + 0.55 * z; c.beginPath(); c.arc(P.x + x, P.y + y, r, 0, 7); c.fill();
       }
       c.globalAlpha = 1;

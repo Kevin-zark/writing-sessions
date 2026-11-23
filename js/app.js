@@ -37,15 +37,14 @@ function presetChips() {
 }
 function renderLibrary() {
   $('#view-library').innerHTML = `
-    <header class="top"><h1>Writing Sessions</h1><p>Immersive sprints for your stories</p></header>
+    <header class="top"><h1>Writing Sessions</h1><p>${summary().text}</p></header>
     <div class="cards">${themes.map(t => `
       <button class="card-theme" data-theme="${esc(t.id)}">
         <div class="cover" style="background-image:url('${ASSET}themes/${esc(t.id)}/${esc(t.cover)}')"></div>
         <div class="meta"><h2>${esc(t.title)}</h2><p>${esc(t.description)}</p>
-        <span class="pill">${t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span></div>
+        <div class="journey-actions"><span class="journey-details">${t.schema >= 2 ? `${t.legs.length} legs · ${t.legs.reduce((a, l) => a + (l.segments || l.views).length, 0)} views · ${t.legs.reduce((a, l) => a + l.music.length, 0)} songs` : `${(t.scenes || []).length} scenes`}${t.status === 'private' ? ' · private' : ''}</span><span class="choose-session">Set up session</span></div></div>
       </button>`).join('') || '<p class="muted">No themes yet.</p>'}
-    </div>
-    <p class="muted center small">More themes appear here as they are made — use the Request tab.</p>`;
+    </div>`;
   $('#view-library').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => openSheet(themes.find(t => t.id === b.dataset.theme)));
 }
 function openSheet(t) {
@@ -61,7 +60,7 @@ function openSheet(t) {
       <p class="muted small center">Tap to start — sound begins when you do. <a href="#" id="to-settings">Custom lengths in Settings</a></p>
     </div>`;
   sh.querySelector('.sheet-x').onclick = () => sh.hidden = true;
-  sh.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { applyPreset(b.dataset.preset); openSheet(t); });
+  sh.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { applyPreset(b.dataset.preset); renderLibrary(); openSheet(t); });
   $('#to-settings').onclick = (e) => { e.preventDefault(); sh.hidden = true; setTab('settings'); };
   $('#begin').onclick = () => { sh.hidden = true; begin(t); };
 }

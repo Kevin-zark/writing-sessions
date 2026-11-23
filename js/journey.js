@@ -21,7 +21,7 @@ export function chainOf(m) {
         views: leg.segments.map((v, vi) => ({
           id: v.id, title: v.title, kind: 'cruise', leg: li, view: vi, clip: null, still: v.backdrop, dur: 0, next: null, ambience: mergeLayers(base, v.ambience),
           introViewSeconds: v.introViewSeconds,
-          scene: { paintedStrips: v.paintedStrips, exitCut: v.exitCut, backdrop: v.backdrop, mid: v.mid, near: v.near || leg.near, fog: { ...(leg.fog || {}), ...(v.fog || {}) }, weather: { ...(leg.weather || {}), ...(v.weather || {}) }, landmark: v.landmark || null },
+          scene: { panBackdrop: v.panBackdrop, paintedStrips: v.paintedStrips, exitCut: v.exitCut, backdrop: v.backdrop, mid: v.mid, near: v.near || leg.near, fog: { ...(leg.fog || {}), ...(v.fog || {}) }, weather: { ...(leg.weather || {}), ...(v.weather || {}) }, landmark: v.landmark || null },
         })) });
       return;
     }
