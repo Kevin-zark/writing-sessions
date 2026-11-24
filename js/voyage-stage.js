@@ -6,6 +6,15 @@ export class VoyageStage {
   constructor(root,plan,base,getPos,legs) {
     this.events=legs.map((leg,i)=>(leg.cues||[]).map(cue=>passageCueTime(plan,i,cue.at)));
     this.plan=plan; this.getPos=getPos;
+    this.playing=true;
+    this.visibility=()=>{
+      if(document.hidden) this.stopFrames();
+      else if(this.draw && !this.closed) {
+        this.paint(this.getPos());
+        if(this.playing) this.resume();
+      }
+    };
+    document.addEventListener('visibilitychange',this.visibility);
     this.canvas=document.createElement('canvas');
     this.canvas.className='voyage-canvas';
     this.canvas.setAttribute('aria-label','View along the port bow');
@@ -13,7 +22,10 @@ export class VoyageStage {
     this.ready=voyageScene(this.canvas,new URL(base,document.baseURI)).then(draw=>{
       this.draw=draw;
       if (this.closed) draw.dispose?.();
-      else this.resume();
+      else {
+        this.paint(this.getPos());
+        if(this.playing) this.resume();
+      }
     });
   }
   paint(pos) {
@@ -31,9 +43,11 @@ export class VoyageStage {
     if (index!==this.cur) this.paint(pos);
   }
   jump(index,pos) { this.paint(pos); }
-  pause() { cancelAnimationFrame(this.raf); this.raf=0; }
+  stopFrames() { cancelAnimationFrame(this.raf); this.raf=0; }
+  pause() { this.playing=false; this.stopFrames(); }
   resume() {
-    if (this.raf || this.closed || !this.draw) return;
+    this.playing=true;
+    if (document.hidden || this.raf || this.closed || !this.draw) return;
     let previous=-Infinity;
     const tick=timestamp=>{
       if (timestamp-previous>=32) { this.paint(this.getPos()); previous=timestamp; }
@@ -41,5 +55,9 @@ export class VoyageStage {
     };
     this.raf=requestAnimationFrame(tick);
   }
-  destroy() { this.closed=true; this.pause(); this.draw?.dispose?.(); this.canvas.remove(); }
+  destroy() {
+    this.closed=true; this.pause();
+    document.removeEventListener('visibilitychange',this.visibility);
+    this.draw?.dispose?.(); this.canvas.remove();
+  }
 }

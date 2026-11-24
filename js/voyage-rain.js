@@ -108,9 +108,9 @@ export function prepareRain() {
     landing:noise(i+3100), fan:noise(i+3400), size:noise(i+3800),
     duration:noise(i+4170)
   }));
-  function bowSpray(c,t,exposure,wind,overRail) {
+  function bowSpray(c,phase,exposure,wind,overRail) {
     if(exposure<.3) return;
-    const cycle=(t*.68-.8-1.57)/(2*Math.PI);
+    const cycle=(phase-.8-1.57)/(2*Math.PI);
     const encounter=Math.floor(cycle), elapsed=(cycle-encounter)*2*Math.PI/.68;
     const strength=noise(encounter+7051);
     if(elapsed>1.7 || strength>exposure*.64) return;
