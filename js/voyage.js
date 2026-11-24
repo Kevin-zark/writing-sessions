@@ -145,7 +145,7 @@ export async function voyageScene(canvas, base=BASE) {
   const {sea,harbor,merchant,foredeck,wash:foam,navy,sunny}=art;
   const flags=prepareFlags(art), telltale=prepareTelltale();
   const rainfall=prepareRain();
-  let wind=0, windTime=0;
+  let wind=0, windTime=0, seaMotion=0;
   canvas.width=1280; canvas.height=720;
   const c=canvas.getContext('2d',{alpha:false});
   const water=waterSurface(sea), warmWater=waterSurface(sunny), tempest=waterSurface(art.storm), eveningSea=waterSurface(art.sunset);
@@ -366,11 +366,12 @@ export async function voyageScene(canvas, base=BASE) {
     }
   }
 
-  function passShip(image,x,w,proximity,t,surface,forward=false) {
+  function passShip(image,x,w,proximity,t,forward=false) {
     if (x>1340 || x+w*1.5 < -52) return;
     image=flags(image,wind,windTime);
-    const bob = 374 + 30*proximity + 3.4*Math.sin(t*.72+2);
-    const heel = .012*Math.sin(t*.62+.8);
+    const response=(.25+.75*proximity)*(.45+.55*seaMotion);
+    const bob=374+30*proximity+3.4*response*Math.sin(t*.72+2);
+    const heel=.012*response*Math.sin(t*.62+.8);
     // Project stations along the keel at their respective ranges. The ends
     // foreshorten on different bearings as the ship crosses our heading.
     const bearing=Math.atan2(x+w*.5-630,785);
@@ -379,9 +380,20 @@ export async function voyageScene(canvas, base=BASE) {
     x+=(w-length)/2;
     w=length;
     reflected(image,x,bob,w,t,.26);
-    c.save(); c.translate(x+w*.5,bob); c.rotate(heel);
+    const pitch=.012*response*Math.sin(t*.48+1.4);
+    // Clip the hull at the local crest. Repainting a rectangular patch of sea
+    // after the hull also erased its reflection and part of the trailing wake.
+    c.save(); c.beginPath();
+    c.moveTo(x-w*.25,bob-h*1.5-20); c.lineTo(x+w*1.25,bob-h*1.5-20);
+    for(let i=80;i>=-16;i--) {
+      const u=i/64, px=x+w*u;
+      const base=bob+(u-.5)*w*(heel+pitch-(bob-horizon)*Math.sin(yaw)/785);
+      const wave=response*(1.6*Math.sin(px*.074+t*2.2)+.8*Math.sin(px*.135-t*1.72));
+      c.lineTo(px,base-2.1+wave);
+    }
+    c.closePath(); c.clip();
+    c.translate(x+w*.5,bob); c.rotate(heel);
     let lastX=-w*.5;
-    const pitch=.012*Math.sin(t*.48+1.4);
     for (let i=0;i<40;i++) {
       const u=(i+1)/40, inv=1/(1+(u-.5)*Math.sin(yaw)*w/785);
       const next=(u-.5)*w*inv;
@@ -394,24 +406,12 @@ export async function voyageScene(canvas, base=BASE) {
       lastX=next;
     }
     c.restore();
-    // Waves cross in front of the hull. Their crest follows the waterline
-    // as the vessel heels, and a short broken wake trails from the stern.
-    if (x < 1332 && x+w*1.5 > -52) {
-      c.save(); c.beginPath();
-      for (let i=0;i<=64;i++) {
-        const u=i/64, px=x+w*u;
-        const py=bob+(u-.5)*w*(heel+pitch-(bob-horizon)*Math.sin(yaw)/785)-2.1+1.6*Math.sin(px*.074+t*2.2)+.8*Math.sin(px*.135-t*1.72);
-        if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
-      }
-      c.lineTo(x+w,bob+64); c.lineTo(x,bob+64); c.closePath(); c.clip();
-      c.drawImage(surface,-52,-30,1384,780); c.restore();
-      c.lineWidth=.9;
-      for (let i=0;i<65;i++) {
-        const u=(i/65+t*.35)%1, spread=Math.sin(i*61.27);
-        const px=x+w*(forward ? .09-u*.28 : .91+u*.28), py=bob+w*.41*heel+u*(1+spread*3)+Math.sin(i+t);
-        c.strokeStyle='rgba(202,215,210,'+(.24*(1-u))+')';
-        c.beginPath(); c.moveTo(px,py); c.lineTo(px+2+u*3,py+.3); c.stroke();
-      }
+    c.lineWidth=.9;
+    for (let i=0;i<65;i++) {
+      const u=(i/65+t*.35)%1, spread=Math.sin(i*61.27);
+      const px=x+w*(forward ? .09-u*.28 : .91+u*.28), py=bob+w*.41*heel+u*(1+spread*3)+Math.sin(i+t);
+      c.strokeStyle='rgba(202,215,210,'+(.24*(1-u))+')';
+      c.beginPath(); c.moveTo(px,py); c.lineTo(px+2+u*3,py+.3); c.stroke();
     }
   }
 
@@ -468,7 +468,7 @@ export async function voyageScene(canvas, base=BASE) {
     c.drawImage(innerEye,-radius,-radius,2*radius,2*radius); c.restore();
   }
 
-  function pirateRun(p,t,surface,race,events) {
+  function pirateRun(p,t,race,events) {
     const presence=race ? arc(p,.17,.34,.82,.93) : arc(p,.26,.39,.73,.85);
     if (!presence) return;
     const near=race ? between(p,.27,.68) : between(p,.30,.59);
@@ -476,7 +476,7 @@ export async function voyageScene(canvas, base=BASE) {
     const x=race ? 340+140*Math.sin(p*9)-620*between(p,.72,.92)
                  : 1050-850*between(p,.26,.66)-590*between(p,.68,.86);
     c.save(); c.globalAlpha=presence;
-    passShip(art.pirate,x,w,near,t,surface,true);
+    passShip(art.pirate,x,w,near,t,true);
     if (!race) for (const event of events) {
       const age=t-event;
       if (age<0 || age>14) continue;
@@ -502,9 +502,16 @@ export async function voyageScene(canvas, base=BASE) {
     const storm=leg===2 ? arc(progress,.06,.32,.67,.92) : 0;
     const rain=leg===0 ? 1-between(progress,.40,.67) : storm;
     const underway=atAnchor ? 0 : arc(progress,0,.025,.90,1);
+    // In clear weather the ship still encounters swell. The keys shelter the
+    // outward passage; the pursuit and exposed headland pick up a beam sea.
+    const pursuit=leg===1 ? arc(progress,.25,.53,.69,.88) : 0;
+    const headland=leg===3 ? arc(progress,.21,.48,.73,.90) : 0;
+    const lee=leg===2 ? arc(progress,.66,.79,.85,.99) : 0;
+    const fairSwell=.44*pursuit+.66*headland+.27*lee;
     windTime=t;
-    wind=voyageWind(leg,warm,storm,underway,t);
-    const open=underway*(1-.77*warm+2.1*storm);
+    wind=voyageWind(leg,warm,storm,underway,t)+underway*(.17*pursuit+.14*headland);
+    const open=underway*(1-.77*warm+2.1*storm+fairSwell);
+    seaMotion=open;
     const swell=Math.sin(t*.68+.16*Math.sin(t*.23));
     const cross=Math.sin(t*.47+1.1);
     const roll=(.30+.70*open)*(.019*swell+.009*cross+.0018*Math.sin(t*1.7));
@@ -524,7 +531,9 @@ export async function voyageScene(canvas, base=BASE) {
     const distance=leg*(legSeconds-ramp)+speedIntegral;
     const departure=1-between(progress,0,leg===0 ? .054 : .15);
     const arrival=between(progress,leg===0 ? .64 : .76,1);
-    const shelter=Math.max(departure*.91,arrival*(leg===3 ? .68 : .91));
+    const protectedWater=leg===1 ? .47*(1-between(progress,.18,.50))
+      : leg===3 ? .57*(1-between(progress,.16,.41)) : .21*lee;
+    const shelter=Math.max(departure*.91,arrival*(leg===3 ? .68 : .91),protectedWater);
     const surface=blendSea(t,distance,warm,storm,evening,shelter,rain);
     c.drawImage(surface,-52,-30,1384,780);
     const travel=1.7*speedIntegral;
@@ -548,29 +557,29 @@ export async function voyageScene(canvas, base=BASE) {
     const x=1480-(route-14)*53;
     const proximity=Math.exp(-Math.pow((x-485)/820,2));
     if (leg===0) {
-      passShip(merchant,x,245+190*proximity,proximity,t,surface);
+      passShip(merchant,x,245+190*proximity,proximity,t);
       const approach=ease((progress-.14)/.17);
       const navyX=910-455*approach-Math.max(0,progress-.31)*12400;
       const near=ease((progress-.16)/.17);
       if (progress>.14 && progress<.46) {
         c.globalAlpha=ease((progress-.14)/.025);
-        passShip(navy,navyX,32+560*near,near,t+.9,surface);
+        passShip(navy,navyX,32+560*near,near,t+.9);
         c.globalAlpha=1;
       }
       seaStacks(progress,.48,.78,t);
     } else {
       landfall(ports[leg-1],1-between(progress,0,.15),t);
-      if (leg===1 || leg===3) pirateRun(progress,t,surface,leg===3,events);
-      if (leg===2) whirlpool(progress,t);
       seaStacks(progress,.12,.41,t);
       seaStacks(progress,.57,.83,t);
+      if (leg===2) whirlpool(progress,t);
+      if (leg===1 || leg===3) pirateRun(progress,t,leg===3,events);
     }
     landfall(ports[leg],arrival,t);
     rainfall.drops(c,t,rain,wind,storm,false);
     c.restore();
     c.save();
     c.translate(lean*.45, lift*.18);
-    const exposure=underway*(1-shelter)*(.15+.43*rain+.52*storm);
+    const exposure=underway*(1-shelter)*(.15+.43*rain+.52*storm+.49*fairSwell);
     rainfall.bowSpray(c,t,exposure,wind,false);
     if (warm<1) c.drawImage(decks.get(foredeck)(),-7,-5,1294,730);
     if (warm>0 && storm<1 && evening<1) { c.globalAlpha=warm; c.drawImage(decks.get(sunDeck)(),-7,-5,1294,730); }

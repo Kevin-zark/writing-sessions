@@ -72,7 +72,7 @@
  "breakText": [
   "Palm shadows cross the quay. The ship is at anchor.",
   "The shipwrights are patching the hull at the pirate haven.",
-  "A few coins buy the hermit’s chart. The red X is on Split Rock Beach."
+  "A few coins buy the hermitâ€™s chart. The red X is on Split Rock Beach."
  ],
  "breakEndText": "The lines are coming aboard.",
  "ambienceLib": {
@@ -141,7 +141,7 @@
   },
   {
    "id": "port-3",
-   "title": "The hermit’s trading post",
+   "title": "The hermitâ€™s trading post",
    "still": "cover.webp",
    "ambience": [
     {
@@ -580,7 +580,7 @@
   },
   {
    "id": "passage-3",
-   "title": "The hermit’s chart",
+   "title": "The hermitâ€™s chart",
    "music": [],
    "ambience": [
     {
@@ -752,7 +752,7 @@
     },
     {
      "id": "sea-3-8",
-     "title": "The hermit’s chart",
+     "title": "The hermitâ€™s chart",
      "backdrop": "sea.webp",
      "ambience": [
       {
