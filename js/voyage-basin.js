@@ -1,84 +1,50 @@
-// Optical flow follows the photographed far wall, near lip and plunging foam.
-// Short overlapping advection intervals keep detail sharp without accumulating
-// distortion across the five-minute encounter.
+// Screen-space projection of sloping orbits measured against the storm still.
+// The far wall spans more vertical pixels than the foreshortened near lip.
 export const basinFragment=`precision highp float;
-varying vec2 uv; uniform sampler2D sea; uniform sampler2D spindrift; uniform float time;
-vec2 current(vec2 q) {
-  vec2 r=(q-vec2(.39,.665))*vec2(1.,1.62);
-  float dist=length(r);
-  vec2 radial=r/max(dist,.018);
-  vec2 tangent=vec2(-radial.y,radial.x/1.62);
-  float nearLip=smoothstep(.74,.94,q.y);
-  return (-radial*vec2(.013,.014)+tangent*vec2(.061,.048))*
-    smoothstep(.012,.12,dist)*(1.-.35*nearLip);
+varying vec2 uv;
+uniform sampler2D sea;
+uniform float time;
+
+vec2 orbit(float radius, float angle) {
+  return vec2(.39,.68) + radius*vec2(.48*cos(angle),.24*sin(angle)-.12);
 }
-float streaks(vec2 position,float angle) {
-  float cs=cos(angle), sn=sin(angle);
-  vec2 q=mat2(cs,-sn,sn,cs)*position;
-  return texture2D(spindrift,.5+.49*q).a;
+
+// Trace the photographic water backwards around its orbit. Two overlapping
+// time windows allow persistent shear without stretching the waves indefinitely.
+vec3 waterParcel(float radius,float angle,float age) {
+  float inward=.018*smoothstep(.02,.25,radius);
+  float sourceRadius=radius*(1.+inward*age);
+  float speed=.15+.60/(1.+12.*radius*radius);
+  float sourceAngle=angle-.16*time-(speed-.16)*age;
+  sourceAngle+=.04*sin(3.*angle+6.*radius-time*.43);
+  return texture2D(sea,orbit(sourceRadius,sourceAngle)).rgb;
 }
-void main() {
+
+void main(){
   vec2 q=uv;
-  float rim=.281;
-  float wet=smoothstep(rim-.022,rim+.045,q.y);
-  vec2 flow=current(q)*wet;
-  float noise=sin(q.x*32.+q.y*16.-time*1.7)*sin(q.y*30.-time*.84);
-  q+=wet*.0018*vec2(noise,sin(q.x*54.+time*1.6));
-  float a=fract(time/1.7), b=fract(time/1.7+.5);
-  vec3 first=texture2D(sea,q-flow*(a-.5)*1.7).rgb;
-  vec3 second=texture2D(sea,q-flow*(b-.5)*1.7).rgb;
-  vec3 col=mix(second,first,1.-abs(2.*a-1.));
-  // Recover fine foam texture lost when the two moving samples overlap.
-  vec2 texel=vec2(.00065,.0011);
-  vec2 moving=q-flow*((a>.25 && a<.75 ? a : b)-.5)*1.7;
-  vec3 center=texture2D(sea,moving).rgb;
-  vec3 surround=.25*(texture2D(sea,moving+vec2(texel.x,0.)).rgb+
-    texture2D(sea,moving-vec2(texel.x,0.)).rgb+texture2D(sea,moving+vec2(0.,texel.y)).rgb+
-    texture2D(sea,moving-vec2(0.,texel.y)).rgb);
-  col+=.45*wet*(center-surround);
-  vec2 bowl=(uv-vec2(.36,.65))*vec2(1.,1.55);
-  float depth=1.-smoothstep(.06,.31,length(bowl));
-  col*=1.-.36*depth*(1.-smoothstep(.14,.54,max(col.r,col.g)));
-  // Project a rotating current onto sloping water. The centres of projected
-  // orbits sink lower in the image as their radius approaches the throat.
-  vec2 ring=(uv-vec2(.375,.64))/vec2(.55,.27);
-  float radius=length(ring);
-  for(int i=0;i<3;i++){
-    ring.y=(uv.y-.605-.087*(1.-smoothstep(.0,1.,radius)))/.27;
-    radius=length(ring);
-  }
-  float angular=atan(ring.y,ring.x);
-  float mask=(1.-smoothstep(.76,1.03,radius))*smoothstep(.045,.16,radius);
-  vec2 eddy=ring*(1.+.047*sin(3.*angular+.41*time)+.024*sin(5.*angular-.23*time));
-  float outer=streaks(eddy,.31*time+.82*radius);
-  float inner=streaks(eddy,.69*time+1.22*radius);
-  float froth=mix(inner,outer,smoothstep(.25,.75,radius));
-  vec3 whitewater=mix(vec3(.48,.61,.62),vec3(.87,.92,.90),froth);
-  col=mix(col,whitewater,mask*froth*.92);
+  float wet=smoothstep(.281,.40,q.y);
+  q.y+=wet*(.0032*sin(q.x*19.+time*.89)+.002*sin(q.x*39.-time*.62));
+  vec2 local=(q-vec2(.39,.68))/vec2(.48,.24);
+  // x=r*cos(a), y=r*(sin(a)-.5).
+  float r=(local.y+sqrt(local.y*local.y+3.*dot(local,local)))/1.5;
+  float a=atan(local.y+.5*r,local.x+.000001);
+  float phase=fract(time/6.);
+  vec3 first=waterParcel(r,a,(phase-.5)*6.);
+  vec3 second=waterParcel(r,a,(fract(phase+.5)-.5)*6.);
+  float blend=smoothstep(0.,1.,1.-abs(2.*phase-1.));
+  vec3 moving=mix(second,first,blend);
+  // Retain fixed incident storm light as individual crests cross the wall.
+  float wall=smoothstep(.06,.34,r)*(1.-smoothstep(.72,1.05,r));
+  moving*=.78+.24*smoothstep(.05,.68,r)+wall*.14*cos(a+1.1);
+  vec2 drift=vec2(-sin(a)*.007,cos(a)*.003)*wet;
+  vec3 outer=texture2D(sea,q+drift*sin(time*.92+11.*r)).rgb;
+  vec3 col=mix(outer,moving,1.-smoothstep(.79,1.04,r));
   float edge=smoothstep(0.,.093,uv.x)*smoothstep(0.,.093,1.-uv.x)*
     smoothstep(.28,.415,uv.y)*smoothstep(0.,.14,1.-uv.y);
   gl_FragColor=vec4(col*edge,edge);
 }`;
 
-export function basinFoam(image) {
-  // Extract only aerated streaks; the photographed walls supply all depth,
-  // colour and shadow, including the dark trough beneath the near rim.
-  const plate=document.createElement('canvas');
-  plate.width=image.width; plate.height=image.height;
-  const ctx=plate.getContext('2d');
-  ctx.drawImage(image,0,0);
-  const pixels=ctx.getImageData(0,0,plate.width,plate.height);
-  for(let i=0;i<pixels.data.length;i+=4) {
-    const data=pixels.data;
-    const light=(data[i]*.22+data[i+1]*.60+data[i+2]*.18)/255;
-    data[i+3]*=Math.min(1,Math.max(0,(light-.31)*1.95))**1.25;
-    data[i]=186; data[i+1]=207; data[i+2]=207;
-  }
-  ctx.putImageData(pixels,0,0);
-  return plate;
-}
-
-export function basinFallback(image,surface,c,foamMap) {
+export function basinFallback(image,surface,c) {
   // Same feathered outline and downhill flow for browsers without WebGL.
   const stencil=document.createElement('canvas');
   stencil.width=surface.width; stencil.height=surface.height;
@@ -89,36 +55,58 @@ export function basinFallback(image,surface,c,foamMap) {
     gradient.addColorStop(end,'black'); gradient.addColorStop(1,'transparent');
     g.fillStyle=gradient; g.fillRect(0,0,w,h); g.globalCompositeOperation='destination-in';
   }
-  const tiles=[];
-  for(let row=7;row<24;row++) for(let col=0;col<36;col++) {
-    const u=(col+.5)/36, v=(row+.5)/24;
-    const rx=u-.39, ry=(v-.665)*1.62, radius=Math.max(.018,Math.hypot(rx,ry));
-    const dx=(-.013*rx-.061*ry)/radius, dy=(-.014*ry+.048*rx/1.62)/radius;
-    const x=Math.floor(col*w/36), y=Math.floor(row*h/24);
-    tiles.push({x,y,width:Math.floor((col+1)*w/36)-x,height:Math.floor((row+1)*h/24)-y,dx,dy});
+  // Cache the inverse projection. In software the water is sampled at a
+  // smaller resolution and radii share a table of angular displacements.
+  const layer=document.createElement('canvas');
+  const cols=layer.width=Math.min(w,720), rows=layer.height=Math.round(cols*h/w);
+  const ctx=layer.getContext('2d');
+  ctx.drawImage(image,0,0,cols,rows);
+  const source=ctx.getImageData(0,0,cols,rows).data;
+  const frame=ctx.getImageData(0,0,cols,rows);
+  const count=cols*rows, radial=new Uint16Array(count);
+  const localX=new Float32Array(count), localY=new Float32Array(count);
+  const mix=new Float32Array(count);
+  const bins=256;
+  const rates=new Float32Array(bins);
+  for(let i=0;i<bins;i++) rates[i]=.15+.60/(1.+12*(i/(bins-1)*1.04)**2);
+  for(let i=0;i<count;i++){
+    const x=((i%cols+.5)/cols-.39)/.48, y=((Math.floor(i/cols)+.5)/rows-.68)/.24;
+    const r=(y+Math.sqrt(y*y+3*(x*x+y*y)))/1.5;
+    if(r>=1.04) continue;
+    radial[i]=Math.round(r/1.04*(bins-1));
+    localX[i]=x; localY[i]=y+.5*r;
+    const fade=Math.min(1,(1.04-r)/.25);
+    mix[i]=fade*fade*(3-2*fade);
+  }
+  const first=new Float32Array(bins*2), second=new Float32Array(bins*2);
+  function orbitTable(table,t,age){
+    for(let i=0;i<bins;i++){
+      const angle=-.16*t-(rates[i]-.16)*age, scale=1+.018*age;
+      table[2*i]=Math.cos(angle)*scale; table[2*i+1]=Math.sin(angle)*scale;
+    }
+  }
+  function sample(x,y,bin,table){
+    const cs=table[2*bin],sn=table[2*bin+1],r=bin*1.04/(bins-1);
+    const u=Math.max(0,Math.min(cols-1,Math.floor(cols*(.39+.48*(x*cs-y*sn)))));
+    const v=Math.max(0,Math.min(rows-1,Math.floor(rows*(.68+.24*(x*sn+y*cs)-.12*r))));
+    return 4*(v*cols+u);
   }
   return t=>{
-    c.clearRect(0,0,w,h);
-    c.drawImage(image,0,0,w,h);
-    const phase=(t/1.7)%1;
-    for(const [age,alpha] of [[(phase+.5)%1,1],[phase,1-Math.abs(2*phase-1)]]) {
-      c.globalAlpha=alpha;
-      for(const tile of tiles) {
-        const {x,y,width,height,dx,dy}=tile;
-        const sx=Math.min(w-width,Math.max(0,x-dx*(age-.5)*1.7*w));
-        const sy=Math.min(h-height,Math.max(0,y-dy*(age-.5)*1.7*h));
-        c.drawImage(image,sx*image.width/w,sy*image.height/h,width*image.width/w,height*image.height/h,
-          x,y,width,height);
+    const phase=(t/6)%1;
+    orbitTable(first,t,(phase-.5)*6);
+    orbitTable(second,t,((phase+.5)%1-.5)*6);
+    const weight=1-Math.abs(2*phase-1), alpha=weight*weight*(3-2*weight);
+    for(let i=0;i<count;i++){
+      if(!mix[i]) continue;
+      const a=sample(localX[i],localY[i],radial[i],first);
+      const b=sample(localX[i],localY[i],radial[i],second);
+      for(let k=0;k<3;k++){
+        const water=source[b+k]+alpha*(source[a+k]-source[b+k]);
+        frame.data[i*4+k]=source[i*4+k]+mix[i]*(water-source[i*4+k]);
       }
     }
-    c.globalAlpha=1;
-    // Separate inner and outer orbits on the low-detail canvas path.
-    for(const [radius,cy,speed,opacity] of [[1,.605,.31,.73],[.45,.666,.69,.56]]) {
-      c.save();
-      c.translate(w*.375,h*cy); c.scale(w*.55*radius,h*.27*radius);
-      c.rotate(t*speed+.8*radius); c.globalAlpha=opacity;
-      c.drawImage(foamMap,-1,-1,2,2); c.restore();
-    }
+    ctx.putImageData(frame,0,0);
+    c.clearRect(0,0,w,h); c.drawImage(layer,0,0,w,h);
     c.globalCompositeOperation='destination-in'; c.drawImage(stencil,0,0);
     c.globalCompositeOperation='source-over';
     return surface;
