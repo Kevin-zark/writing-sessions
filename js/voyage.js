@@ -366,20 +366,6 @@ export async function voyageScene(canvas, base=BASE) {
     }
   }
 
-  function bowWash(t,open,underwayWash) {
-    // Each patch is shed at the stem and widens down the port side as it falls aft.
-    for (let i=0;i<76;i++) {
-      const age=(t*.23+i*.618034)%1;
-      const spread=Math.sin(i*78.53);
-      const y=451+266*age*age;
-      const x=795-1040*age*age+(22+78*age)*spread;
-      const w=(24+118*age)*(1+.22*Math.sin(i*4.12));
-      c.globalAlpha=underwayWash*(.16+.30*open)*Math.sin(Math.PI*age)**.65;
-      c.drawImage(foam,x-w/2,y,w,w*(.09+.12*age));
-    }
-    c.globalAlpha=1;
-  }
-
   function passShip(image,x,w,proximity,t,surface,forward=false) {
     if (x>1340 || x+w*1.5 < -52) return;
     image=flags(image,wind,windTime);
@@ -584,16 +570,15 @@ export async function voyageScene(canvas, base=BASE) {
     c.restore();
     c.save();
     c.translate(lean*.45, lift*.18);
-    c.save();
-    c.globalCompositeOperation='source-over';
-    if (underway>.001) { bowWash(t,open,underway); }
-    c.restore();
+    const exposure=underway*(1-shelter)*(.15+.43*rain+.52*storm);
+    rainfall.bowSpray(c,t,exposure,wind,false);
     if (warm<1) c.drawImage(decks.get(foredeck)(),-7,-5,1294,730);
     if (warm>0 && storm<1 && evening<1) { c.globalAlpha=warm; c.drawImage(decks.get(sunDeck)(),-7,-5,1294,730); }
     if (evening>0) { c.globalAlpha=evening; c.drawImage(decks.get(duskDeck)(),-7,-5,1294,730); }
     if (storm>0) { c.globalAlpha=storm; c.drawImage(decks.get(wetDeck)(),-7,-5,1294,730); }
     c.globalAlpha=1;
     telltale(c,wind,t);
+    rainfall.bowSpray(c,t,exposure,wind,true);
     rainfall.drops(c,t,rain,wind,storm,true);
     const chart=leg===2 ? between(progress,.985,1) : leg===3 ? 1-between(progress,.02,.10) : 0;
     if (chart>0) {
