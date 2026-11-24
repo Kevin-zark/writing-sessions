@@ -1,4 +1,4 @@
-import { basinFragment, basinFallback } from './voyage-basin.js';
+import { basinPosition, basinFragment, basinFallback } from './voyage-basin.js';
 import { prepareRain } from './voyage-rain.js';
 import { prepareFlags, prepareSails, prepareTelltale, voyageWind } from './voyage-flags.js';
 const BASE = new URL('../themes/pirate-voyage/', import.meta.url);
@@ -12,14 +12,14 @@ function ease(x) { x = clamp(x); return x * x * (3 - 2 * x); }
 
 // Advect a photographic water surface in perspective. Displacement vanishes
 // at the horizon, with independent cross swells and shorter wind-driven chop.
-function waterSurface(image, width, isBasin=false) {
+function waterSurface(image, width, breakingSea=null) {
   const surface = document.createElement('canvas');
   surface.width=width; surface.height=Math.round(width*9/16);
-  const gl = surface.getContext('webgl', { alpha: isBasin, antialias: false, preserveDrawingBuffer: true });
+  const gl = surface.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true });
   if (!gl) {
     const ctx=surface.getContext('2d');
-    if (isBasin) return basinFallback(image,surface,ctx);
-    return (t,distance,shelter) => {
+    const distort=breakingSea && basinFallback(surface,breakingSea);
+    return (t,distance,shelter,rain,basin) => {
       const w=surface.width, h=surface.height;
       ctx.drawImage(image,0,0,w,h);
       const age=distance%6, other=(distance+3)%6, focus=.61*w;
@@ -36,7 +36,7 @@ function waterSurface(image, width, isBasin=false) {
         }
       }
       ctx.globalAlpha=1;
-      return surface;
+      return basin ? distort(t,basin) : surface;
     };
   }
   function shader(type, source) {
@@ -47,7 +47,7 @@ function waterSurface(image, width, isBasin=false) {
   }
   const program = gl.createProgram();
   gl.attachShader(program, shader(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}'));
-  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, isBasin ? basinFragment : `precision highp float;
+  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `precision highp float;
     varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock; uniform float shelter; uniform float rainfall;
     // Reproject from a recent point along the track. Two overlapping
     // reference times keep photographic wave detail streaming past indefinitely.
@@ -56,7 +56,7 @@ function waterSurface(image, width, isBasin=false) {
       vec2 focus=vec2(.61,.5);
       return texture2D(sea,focus+(q-focus)*ratio).rgb;
     }
-    void main(){
+    vec3 ocean(vec2 uv){
       vec2 q=uv;
       float d=clamp((q.y-.50)*2.,0.,1.);
       // Intersect the sightline with the sea plane. A metre of swell
@@ -114,9 +114,9 @@ function waterSurface(image, width, isBasin=false) {
         float wet=smoothstep(.12,.40,d)*smoothstep(hit,hit+.12,rainfall);
         col+=wet*crest*vec3(.095,.106,.11);
       }
-      gl_FragColor=vec4(col,1.);
-
-    }`));
+      return col;
+    }
+    ${breakingSea ? basinFragment : "void main(){gl_FragColor=vec4(ocean(uv),1.);}"}`));
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw Error(gl.getProgramInfoLog(program));
   gl.useProgram(program);
@@ -130,11 +130,30 @@ function waterSurface(image, width, isBasin=false) {
   for (const param of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,param,gl.LINEAR);
   for (const param of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D,param,gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,image);
+  if (breakingSea) {
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D,gl.createTexture());
+    for(const param of [gl.TEXTURE_MIN_FILTER,gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D,param,gl.LINEAR);
+    for(const param of [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D,param,gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,breakingSea);
+    gl.uniform1i(gl.getUniformLocation(program,'breakingSea'),1);
+    gl.activeTexture(gl.TEXTURE0);
+  }
   const clock=gl.getUniformLocation(program,'time');
   const distanceClock=gl.getUniformLocation(program,'distanceClock');
   const shelterUniform=gl.getUniformLocation(program,'shelter');
   const rainUniform=gl.getUniformLocation(program,'rainfall');
-  const render=(t,distance,shelter,rain)=>{ gl.uniform1f(rainUniform,rain); gl.uniform1f(shelterUniform,shelter); gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
+  const bowl=gl.getUniformLocation(program,"bowl"), pull=gl.getUniformLocation(program,"pull");
+  const render=(t,distance,shelter,rain,basin)=>{
+    if (breakingSea) {
+      gl.uniform1f(pull,basin?.[4]||0);
+      if(basin) gl.uniform4f(bowl,basin[0],basin[1],basin[2],basin[3]);
+    }
+    gl.uniform1f(rainUniform,rain); gl.uniform1f(shelterUniform,shelter);
+    gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    return surface;
+  };
   render.dispose=()=>gl.getExtension('WEBGL_lose_context')?.loseContext();
   return render;
 }
@@ -168,8 +187,7 @@ export async function voyageScene(canvas, base=BASE) {
   // sea surfaces headroom for a fullscreen resize after playback has begun.
   const seaWidth=Math.min(sea.width,Math.max(1280,Math.round(screen.width*(devicePixelRatio||1))));
   const water=waterSurface(sea,seaWidth), warmWater=waterSurface(sunny,seaWidth);
-  const tempest=waterSurface(art.storm,seaWidth), eveningSea=waterSurface(art.sunset,seaWidth);
-  const undertow=waterSurface(art['tempest-basin'],seaWidth,true);
+  const tempest=waterSurface(art.storm,seaWidth,art["tempest-basin"]), eveningSea=waterSurface(art.sunset,seaWidth);
   function lightDeck(filter) {
     const plate=document.createElement('canvas');
     plate.width=foredeck.width; plate.height=foredeck.height;
@@ -189,7 +207,7 @@ export async function voyageScene(canvas, base=BASE) {
   const ocean=document.createElement('canvas');
   ocean.width=seaWidth; ocean.height=Math.round(seaWidth*9/16);
   const oceanCtx=ocean.getContext('2d');
-  function blendSea(t, distance, warm, storm, evening, shelter, rain) {
+  function blendSea(t, distance, warm, storm, evening, shelter, rain, basin) {
     if (evening>0) {
       if (evening>=1) return eveningSea(t,distance,shelter,rain);
       oceanCtx.drawImage(warmWater(t,distance,shelter,rain),0,0);
@@ -197,9 +215,9 @@ export async function voyageScene(canvas, base=BASE) {
       return ocean;
     }
     if (storm>0) {
-      if (storm>=1) return tempest(t,distance,shelter,rain);
+      if (storm>=1) return tempest(t,distance,shelter,rain,basin);
       oceanCtx.drawImage(warmWater(t,distance,shelter,rain),0,0);
-      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance,shelter,rain),0,0); oceanCtx.globalAlpha=1;
+      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance,shelter,rain,basin),0,0); oceanCtx.globalAlpha=1;
       return ocean;
     }
     if (warm<=0) return water(t,distance,shelter,rain);
@@ -464,22 +482,6 @@ export async function voyageScene(canvas, base=BASE) {
     c.restore();
   }
 
-  function whirlpool(p,t,turn) {
-    const strength=arc(p,.435,.515,.725,.815);
-    if (!strength) return;
-    const approach=between(p,.435,.619), escape=between(p,.66,.815);
-    // The far lip arrives on the horizon. As the ship climbs the rim the
-    // sightline tips into the bowl; the eye passes down the port side.
-    const width=580+1180*approach-520*escape;
-    const height=width*(.36+.145*approach);
-    const eyeX=665-152*approach-156*between(p,.56,.70)-870*escape+5*Math.sin(t*.36)*turn;
-    c.save(); c.globalAlpha=strength;
-    // Register the far waves against the SAME horizon as the surrounding sea.
-    // The entire exterior pitches together while the deck-frame stays put.
-    c.drawImage(undertow(t,0,0,0),eyeX-width*.39,359-height*.281,width,height);
-    c.restore();
-  }
-
   function pirateRun(p,t,race,events) {
     const presence=race ? arc(p,.17,.34,.82,.93) : arc(p,.26,.39,.73,.85);
     if (!presence) return;
@@ -550,7 +552,8 @@ export async function voyageScene(canvas, base=BASE) {
     const protectedWater=leg===1 ? .47*(1-between(progress,.18,.50))
       : leg===3 ? .57*(1-between(progress,.16,.41)) : .21*lee;
     const shelter=Math.max(departure*.91,arrival*(leg===3 ? .68 : .91),protectedWater);
-    const surface=blendSea(t,distance,warm,storm,evening,shelter,rain);
+    const basin=leg===2 ? basinPosition(progress,turn,t) : null;
+    const surface=blendSea(t,distance,warm,storm,evening,shelter,rain,basin);
     if(turn>0) {
       // Pitching down opens more foreground water below the fixed horizon.
       const half=surface.height/2;
@@ -592,7 +595,6 @@ export async function voyageScene(canvas, base=BASE) {
       landfall(ports[leg-1],1-between(progress,0,.15),t);
       seaStacks(progress,.12,.41,t);
       if (leg!==2) seaStacks(progress,.57,.83,t);
-      if (leg===2) whirlpool(progress,t,turn);
       if (leg===1 || leg===3) pirateRun(progress,t,leg===3,events);
     }
     if (turn) rainfall.air(c,t,rain,storm);
@@ -618,7 +620,7 @@ export async function voyageScene(canvas, base=BASE) {
     }
     c.restore();
   };
-  draw.dispose=()=>{resize.disconnect(); [water,warmWater,tempest,eveningSea,undertow].forEach(render=>render.dispose?.());};
+  draw.dispose=()=>{resize.disconnect(); [water,warmWater,tempest,eveningSea].forEach(render=>render.dispose?.());};
   return draw;
 }
 
