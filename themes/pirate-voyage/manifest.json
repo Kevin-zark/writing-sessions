@@ -78,15 +78,18 @@
  "ambienceLib": {
   "sailing": {
    "src": "under-sail.mp3",
-   "gain": 2
+   "gain": 2,
+   "character": "water"
   },
   "shore": {
    "src": "anchorage.mp3",
-   "gain": 1.25
+   "gain": 1.25,
+   "character": "water"
   },
   "squall": {
    "src": "gale.mp3",
-   "gain": 1.8
+   "gain": 1.8,
+   "character": "weather"
   },
   "repairs": {
    "src": "shipwright.mp3",
@@ -98,7 +101,17 @@
   },
   "rain": {
    "src": "../dark-academia-train/audio/amb/rain_glass.mp3",
-   "gain": 2.3
+   "gain": 2.3,
+   "character": "weather"
+  },
+  "timbers": {
+   "src": "timbers.mp3",
+   "gain": 1.35
+  },
+  "surf": {
+   "src": "beach-wash.mp3",
+   "gain": 1.65,
+   "character": "water"
   }
  },
  "stations": [
@@ -121,6 +134,10 @@
     {
      "layer": "shore",
      "gain": 0.9
+    },
+    {
+     "layer": "surf",
+     "gain": 0.4
     }
    ]
   },
@@ -147,6 +164,10 @@
     {
      "layer": "shore",
      "gain": 0.9
+    },
+    {
+     "layer": "surf",
+     "gain": 0.43
     }
    ]
   },
@@ -158,6 +179,10 @@
     {
      "layer": "shore",
      "gain": 0.9
+    },
+    {
+     "layer": "surf",
+     "gain": 0.88
     }
    ]
   }
@@ -194,6 +219,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.39
       }
      ]
     },
@@ -217,6 +246,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.43
       }
      ]
     },
@@ -240,6 +273,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.47
       }
      ]
     },
@@ -263,6 +300,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.53
       }
      ]
     },
@@ -286,6 +327,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.42
       }
      ]
     },
@@ -309,6 +354,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.33
       }
      ]
     },
@@ -332,6 +381,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.23
+      },
+      {
+       "layer": "surf",
+       "gain": 0.28
       }
      ]
     },
@@ -355,6 +412,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.15
+      },
+      {
+       "layer": "surf",
+       "gain": 0.39
       }
      ]
     }
@@ -391,6 +456,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.21
+      },
+      {
+       "layer": "surf",
+       "gain": 0.31
       }
      ]
     },
@@ -414,6 +487,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.23
       }
      ]
     },
@@ -437,6 +514,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.3
       }
      ]
     },
@@ -460,6 +541,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.43
       }
      ]
     },
@@ -483,6 +568,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.47
       }
      ]
     },
@@ -506,6 +595,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.58
       }
      ]
     },
@@ -529,6 +622,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.36
       }
      ]
     },
@@ -556,6 +653,10 @@
       {
        "layer": "repairs",
        "gain": 0.48
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.17
       }
      ]
     }
@@ -609,6 +710,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.25
       }
      ]
     },
@@ -632,6 +737,10 @@
       {
        "layer": "squall",
        "gain": 0.25
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.43
       }
      ]
     },
@@ -655,6 +764,10 @@
       {
        "layer": "squall",
        "gain": 0.75
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.6
       }
      ]
     },
@@ -678,6 +791,10 @@
       {
        "layer": "squall",
        "gain": 1
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.74
       }
      ]
     },
@@ -701,6 +818,10 @@
       {
        "layer": "squall",
        "gain": 1
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.77
       }
      ]
     },
@@ -724,6 +845,10 @@
       {
        "layer": "squall",
        "gain": 0.94
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.6
       }
      ]
     },
@@ -747,6 +872,14 @@
       {
        "layer": "squall",
        "gain": 0.4
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.37
+      },
+      {
+       "layer": "surf",
+       "gain": 0.28
       }
      ]
     },
@@ -770,6 +903,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.19
+      },
+      {
+       "layer": "surf",
+       "gain": 0.39
       }
      ]
     }
@@ -806,6 +947,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.22
+      },
+      {
+       "layer": "surf",
+       "gain": 0.3
       }
      ]
     },
@@ -829,6 +978,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.26
       }
      ]
     },
@@ -852,6 +1005,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.33
       }
      ]
     },
@@ -875,6 +1032,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.47
       }
      ]
     },
@@ -898,6 +1059,10 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.48
       }
      ]
     },
@@ -921,6 +1086,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.43
+      },
+      {
+       "layer": "surf",
+       "gain": 0.22
       }
      ]
     },
@@ -944,6 +1117,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.25
+      },
+      {
+       "layer": "surf",
+       "gain": 0.62
       }
      ]
     },
@@ -967,6 +1148,14 @@
       {
        "layer": "squall",
        "gain": 0
+      },
+      {
+       "layer": "timbers",
+       "gain": 0.14
+      },
+      {
+       "layer": "surf",
+       "gain": 0.85
       }
      ]
     }

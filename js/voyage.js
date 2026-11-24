@@ -21,21 +21,11 @@ function waterSurface(image, width, viewWidth=image.width) {
       const w=surface.width, h=surface.height;
       const origin=(image.width-viewWidth)*heading;
       ctx.drawImage(image,origin,0,viewWidth,image.height,0,0,w,h);
-      const period=viewWidth<image.width ? 2.5 : 6;
-      const age=distance%period, other=(distance+period/2)%period, focus=.61*w;
-      for (const [seconds,opacity] of [[other,1],[age,1-Math.abs(2*age/period-1)]]) {
-        ctx.globalAlpha=opacity;
-        for (let y=h/2; y<h; y+=3) {
-          const d=(2*y-h)/h, range=3.7/Math.max(.014,d);
-          const ratio=range/(range+1.7*seconds);
-          const swell=Math.sin(.63*(range+distance*1.7)-.81*t);
-          const basin=1-.70*shelter;
-          const sourceY=(.5+(y/h-.5+d*.018*swell*basin)*ratio*basin)*image.height;
-          ctx.drawImage(image,origin+focus/w*(1-ratio)*viewWidth,Math.min(image.height-4,sourceY),
-            viewWidth*ratio,4,0,y,w,3.1);
-        }
-      }
-      ctx.globalAlpha=1;
+      // One affine sample of the original water keeps the fine horizontal
+      // crests intact. Pin the upper edge at the horizon as the swell passes.
+      const lift=(1-.78*shelter)*(.0035*Math.sin(t*.84)+.002*Math.sin(t*.57));
+      ctx.drawImage(image,origin,image.height/2,viewWidth,image.height/2,
+        0,h/2,w,h*(.505+lift));
       return surface;
     };
   }
@@ -50,64 +40,28 @@ function waterSurface(image, width, viewWidth=image.width) {
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `precision highp float;
     varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock; uniform float shelter; uniform float rainfall;
     uniform vec2 seaWindow;
-    uniform float travelPeriod;
     vec4 seaSample(vec2 q){
       return texture2D(sea,vec2(seaWindow.x+clamp(q.x,0.,1.)*seaWindow.y,q.y));
     }
-    // Reproject from a recent point along the track. Two overlapping
-    // reference times keep photographic wave detail streaming past indefinitely.
-    vec3 underway(vec2 q,float range,float age){
-      float ratio=range/(range+age*1.7);
-      vec2 focus=vec2(.61,.5);
-      return seaSample(focus+(q-focus)*ratio).rgb;
-    }
     void main(){
+      float d=clamp((uv.y-.5)*2.,0.,1.);
+      // Backtrace a small displacement on a single exposure. Keep the spatial
+      // gradients bounded even at the horizon so adjacent crests cannot fold
+      // over one another or stretch a row of sun glints down the screen.
       vec2 q=uv;
-      float d=clamp((q.y-.50)*2.,0.,1.);
-      // Intersect the sightline with the sea plane. A metre of swell
-      // occupies many pixels by the rail and a fraction of one at the horizon.
-      float range=3.7/max(.014,d);
-      vec2 world=vec2((q.x-.61)*range*2.6,range+distanceClock*1.7);
-      vec2 k1=vec2(.39,.63), k2=vec2(-.78,.46), k3=vec2(1.72,.94);
-      float longWave=dot(world,k1)-time*.81;
-      float crossWave=dot(world,k2)-time*1.08;
-      float ripple=dot(world,k3)-time*1.62;
-      float amplitude=smoothstep(.012,.13,d);
-      float height=.29*sin(longWave)+.13*sin(crossWave)+.045*sin(ripple);
-      vec2 slope=.29*k1*cos(longWave)+.13*k2*cos(crossWave)+.045*k3*cos(ripple);
-      q.y+=amplitude*d*height*.069;
-      q.x+=d*.009*slope.x;
-      q.x=1.-abs(mod(q.x,2.)-1.);
-      float age=mod(distanceClock,travelPeriod);
-      float other=mod(distanceClock+travelPeriod*.5,travelPeriod);
-      vec3 traveling=mix(underway(q,range,other),underway(q,range,age),1.-abs(2.*age/travelPeriod-1.));
-      vec3 col=mix(seaSample(q).rgb,traveling,smoothstep(.005,.05,d));
-      // Foam flecks on the water have fixed world coordinates. Nearby flecks
-      // expand out from the heading and run aft as the camera overtakes them.
-      vec2 seaPatch=world*vec2(.059,.105)+vec2(.12*slope.y,.08*slope.x);
-      vec2 folded=1.-abs(mod(seaPatch,2.)-1.);
-      vec3 grain=seaSample(vec2(.09+.78*folded.x,.75+.22*folded.y)).rgb;
-      float nearWater=smoothstep(.07,.49,d);
-      col=mix(col,grain,.33*nearWater);
-      col+=vec3(.24,.27,.27)*smoothstep(.38,.66,grain.g)*nearWater;
-      float facing=dot(slope,vec2(-.45,.84));
-      col*=1.+amplitude*(.10*facing+.035*height);
-      col+=vec3(.030,.036,.039)*amplitude*smoothstep(.045,.32,facing);
-      if (shelter>0. && d>0.) {
-        // Inside the headlands, short ripples disturb a quieter reflection.
-        // Sample the fine-grained sea below the horizon rather than scaling
-        // the offshore whitecaps down in place.
-        float inlet=sin(world.x*1.13+world.y*.77-time*1.42);
-        float rebound=sin(world.y*1.46-world.x*.64+time*.94);
-        vec2 stillUV=vec2(uv.x+.0023*d*inlet,.5+d*(.135+.004*rebound));
-        vec3 calm=seaSample(stillUV).rgb;
-        calm*=1.+.055*d*(inlet+.48*rebound);
-        col=mix(col,calm,shelter*smoothstep(.0,.018,d));
-      }
+      float wave=uv.x*11.+d*13.-time*.93+.24*sin(d*7.-time*.31);
+      float cross=uv.x*19.-d*8.+time*.67;
+      float swell=d*(1.-.82*shelter);
+      q.x+=swell*(.0031*cos(wave)+.0012*cos(cross));
+      q.y+=swell*(.0057*sin(wave)+.0022*sin(cross));
+      float advance=sin(distanceClock*.33+d*4.);
+      q+=swell*.0038*advance*vec2(uv.x-.61,d);
+      vec3 col=seaSample(q).rgb;
+      col*=1.+swell*(.026*cos(wave)-.012*cos(cross));
       // Resolve impacts only on the nearby surface. Each cell has its own
       // onset, centre and lifetime; a passing ring briefly tilts reflected light.
       if (rainfall>0. && d>.12) {
-        vec2 patch=world*2.35;
+        vec2 patch=vec2(uv.x*46.,d*27.);
         vec2 cell=floor(patch);
         float seed=fract(sin(dot(cell,vec2(41.27,83.13)))*1647.31);
         float tick=time*1.56+seed*11.;
@@ -141,7 +95,6 @@ function waterSurface(image, width, viewWidth=image.width) {
   const rainUniform=gl.getUniformLocation(program,'rainfall');
   const seaWindow=gl.getUniformLocation(program,'seaWindow');
   const span=viewWidth/image.width;
-  gl.uniform1f(gl.getUniformLocation(program,'travelPeriod'),span<1 ? 2.5 : 6);
   const render=(t,distance,shelter,rain,heading=1)=>{
     gl.uniform2f(seaWindow,(1-span)*heading,span);
     gl.uniform1f(rainUniform,rain); gl.uniform1f(shelterUniform,shelter); gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
@@ -276,7 +229,8 @@ export async function voyageScene(canvas, base=BASE) {
   function landfall(name, approach, t) {
     if (approach<=0) return;
     const img=flags(art[name],wind,windTime), berth=berths[name];
-    const range=67+920*(1-approach)**1.4;
+    // Keep the photographed shore at its native detail scale at the berth.
+    const range=(name==='beach' ? 89 : 78)+920*(1-approach)**1.4;
     // Follow the channel on a shallow diagonal. Nearby moorings change bearing
     // against town, while the high ground lies another half kilometre inland.
     const center=-9+38*(1-approach);
@@ -301,8 +255,8 @@ export async function voyageScene(canvas, base=BASE) {
         const top=left.y-h*(name==='port' ? .70 : 1);
         c.drawImage(img,sx,0,sw,img.height,left.x,top,width,h);
         // The lower quay and trees cast a broken reflection at the local waterline.
-        c.save(); c.globalAlpha*=.17;
-        c.translate(left.x,top+h*foot); c.scale(1,-.25);
+        c.save(); c.globalAlpha*=.12;
+        c.translate(left.x,top+h*foot); c.scale(1,-.075);
         c.drawImage(img,sx,img.height*(foot-.4),sw,img.height*.4,0,-h*.4,width,h*.4);
         c.restore();
       }
@@ -347,7 +301,7 @@ export async function voyageScene(canvas, base=BASE) {
       vessel(art.tender,boat.x-w/2,boat.y+bob,w,.016*Math.sin(t*.49));
     }
     if (name==='beach') {
-      const peg=project(center+3,range-12), h=9.5*peg.scale;
+      const peg=shorePoint(.36), h=7.5*peg.scale;
       const w=h*art.sign.width/art.sign.height;
       c.drawImage(art.sign,peg.x-w/2,peg.y-h,w,h);
     }
