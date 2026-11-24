@@ -1,3 +1,4 @@
+import { prepareRain } from './voyage-rain.js';
 import { prepareFlags, prepareSails, prepareTelltale, voyageWind } from './voyage-flags.js';
 const BASE = new URL('../themes/pirate-voyage/', import.meta.url);
 export const voyageSeconds = 104; // Standalone Ravensgate departure excerpt
@@ -45,7 +46,7 @@ function waterSurface(image) {
   const program = gl.createProgram();
   gl.attachShader(program, shader(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}'));
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, `precision highp float;
-    varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock; uniform float shelter;
+    varying vec2 uv; uniform sampler2D sea; uniform float time; uniform float distanceClock; uniform float shelter; uniform float rainfall;
     // Reproject from a recent point along the track. Two overlapping
     // reference times keep photographic wave detail streaming past indefinitely.
     vec3 underway(vec2 q,float range,float age){
@@ -96,6 +97,21 @@ function waterSurface(image) {
         calm*=1.+.055*d*(inlet+.48*rebound);
         col=mix(col,calm,shelter*smoothstep(.0,.018,d));
       }
+      // Resolve impacts only on the nearby surface. Each cell has its own
+      // onset, centre and lifetime; a passing ring briefly tilts reflected light.
+      if (rainfall>0. && d>.12) {
+        vec2 patch=world*2.35;
+        vec2 cell=floor(patch);
+        float seed=fract(sin(dot(cell,vec2(41.27,83.13)))*1647.31);
+        float tick=time*1.56+seed*11.;
+        float hit=fract(sin(dot(cell,vec2(17.11,59.43))+floor(tick))*1853.73);
+        vec2 center=.30+.4*fract(vec2(seed*17.+hit*3.,hit*11.));
+        float age=fract(tick);
+        float edge=length(fract(patch)-center)-(.015+.30*age);
+        float crest=exp(-edge*edge*580.)*(1.-age)*(1.-age);
+        float wet=smoothstep(.12,.40,d)*smoothstep(hit,hit+.12,rainfall);
+        col+=wet*crest*vec3(.095,.106,.11);
+      }
       gl_FragColor=vec4(col,1.);
 
     }`));
@@ -115,7 +131,8 @@ function waterSurface(image) {
   const clock=gl.getUniformLocation(program,'time');
   const distanceClock=gl.getUniformLocation(program,'distanceClock');
   const shelterUniform=gl.getUniformLocation(program,'shelter');
-  const render=(t,distance,shelter)=>{ gl.uniform1f(shelterUniform,shelter); gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
+  const rainUniform=gl.getUniformLocation(program,'rainfall');
+  const render=(t,distance,shelter,rain)=>{ gl.uniform1f(rainUniform,rain); gl.uniform1f(shelterUniform,shelter); gl.uniform1f(clock,t); gl.uniform1f(distanceClock,distance); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); return surface; };
   render.dispose=()=>gl.getExtension('WEBGL_lose_context')?.loseContext();
   return render;
 }
@@ -127,6 +144,7 @@ export async function voyageScene(canvas, base=BASE) {
   })));
   const {sea,harbor,merchant,foredeck,wash:foam,navy,sunny}=art;
   const flags=prepareFlags(art), telltale=prepareTelltale();
+  const rainfall=prepareRain();
   let wind=0, windTime=0;
   canvas.width=1280; canvas.height=720;
   const c=canvas.getContext('2d',{alpha:false});
@@ -150,23 +168,23 @@ export async function voyageScene(canvas, base=BASE) {
   const ocean=document.createElement('canvas');
   ocean.width=1280; ocean.height=720;
   const oceanCtx=ocean.getContext('2d');
-  function blendSea(t, distance, warm, storm, evening, shelter) {
+  function blendSea(t, distance, warm, storm, evening, shelter, rain) {
     if (evening>0) {
-      if (evening>=1) return eveningSea(t,distance,shelter);
-      oceanCtx.drawImage(warmWater(t,distance,shelter),0,0);
-      oceanCtx.globalAlpha=evening; oceanCtx.drawImage(eveningSea(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
+      if (evening>=1) return eveningSea(t,distance,shelter,rain);
+      oceanCtx.drawImage(warmWater(t,distance,shelter,rain),0,0);
+      oceanCtx.globalAlpha=evening; oceanCtx.drawImage(eveningSea(t,distance,shelter,rain),0,0); oceanCtx.globalAlpha=1;
       return ocean;
     }
     if (storm>0) {
-      if (storm>=1) return tempest(t,distance,shelter);
-      oceanCtx.drawImage(warmWater(t,distance,shelter),0,0);
-      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
+      if (storm>=1) return tempest(t,distance,shelter,rain);
+      oceanCtx.drawImage(warmWater(t,distance,shelter,rain),0,0);
+      oceanCtx.globalAlpha=storm; oceanCtx.drawImage(tempest(t,distance,shelter,rain),0,0); oceanCtx.globalAlpha=1;
       return ocean;
     }
-    if (warm<=0) return water(t,distance,shelter);
-    if (warm>=1) return warmWater(t,distance,shelter);
-    oceanCtx.drawImage(water(t,distance,shelter),0,0);
-    oceanCtx.globalAlpha=warm; oceanCtx.drawImage(warmWater(t,distance,shelter),0,0); oceanCtx.globalAlpha=1;
+    if (warm<=0) return water(t,distance,shelter,rain);
+    if (warm>=1) return warmWater(t,distance,shelter,rain);
+    oceanCtx.drawImage(water(t,distance,shelter,rain),0,0);
+    oceanCtx.globalAlpha=warm; oceanCtx.drawImage(warmWater(t,distance,shelter,rain),0,0); oceanCtx.globalAlpha=1;
     return ocean;
   }
 
@@ -521,7 +539,7 @@ export async function voyageScene(canvas, base=BASE) {
     const departure=1-between(progress,0,leg===0 ? .054 : .15);
     const arrival=between(progress,leg===0 ? .64 : .76,1);
     const shelter=Math.max(departure*.91,arrival*(leg===3 ? .68 : .91));
-    const surface=blendSea(t,distance,warm,storm,evening,shelter);
+    const surface=blendSea(t,distance,warm,storm,evening,shelter,rain);
     c.drawImage(surface,-52,-30,1384,780);
     const travel=1.7*speedIntegral;
     // Kilometres beyond the quay, the distant ridge barely changes bearing.
@@ -539,6 +557,7 @@ export async function voyageScene(canvas, base=BASE) {
         }
       }
     }
+    rainfall.air(c,t,rain,storm);
     // Opposing course. The merchant rises on a different swell from our deck.
     const x=1480-(route-14)*53;
     const proximity=Math.exp(-Math.pow((x-485)/820,2));
@@ -561,6 +580,7 @@ export async function voyageScene(canvas, base=BASE) {
       seaStacks(progress,.57,.83,t);
     }
     landfall(ports[leg],arrival,t);
+    rainfall.drops(c,t,rain,wind,storm,false);
     c.restore();
     c.save();
     c.translate(lean*.45, lift*.18);
@@ -574,20 +594,13 @@ export async function voyageScene(canvas, base=BASE) {
     if (storm>0) { c.globalAlpha=storm; c.drawImage(decks.get(wetDeck)(),-7,-5,1294,730); }
     c.globalAlpha=1;
     telltale(c,wind,t);
+    rainfall.drops(c,t,rain,wind,storm,true);
     const chart=leg===2 ? between(progress,.985,1) : leg===3 ? 1-between(progress,.02,.10) : 0;
     if (chart>0) {
       c.save(); c.globalAlpha=chart; c.translate(1020,655+(1-chart)*85); c.rotate(-.16);
       c.transform(1,0,-.27,.58,0,0); c.drawImage(art.map,-140,-80,280,175); c.restore();
     }
     c.restore();
-    c.globalAlpha=rain;
-    c.strokeStyle='rgba(194,207,212,'+(.19+.22*storm)+')'; c.lineWidth=.8; c.beginPath();
-    for (let i=0;i<83+145*storm;i++) {
-      const x=((i*317.63-t*(61+i%7))%1300+1300)%1300;
-      const y=(i*191.71+t*(270+i%53))%742-12;
-      c.moveTo(x,y); c.lineTo(x-2.2,y+8+i%6);
-    }
-    c.stroke(); c.globalAlpha=1;
   };
   draw.dispose=()=>[water,warmWater,tempest,eveningSea].forEach(render=>render.dispose?.());
   return draw;
